@@ -133,7 +133,7 @@ export function RecordPreviewForm({
   );
 
   return (
-    <div className="flex flex-col gap-6 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4">
+    <div className="flex flex-col gap-6 px-4 pb-4 pt-4">
       {saved && (
         <div className="rounded-lg bg-[var(--color-surface)] p-3 text-sm text-[var(--color-success)]">
           保存しました
@@ -146,7 +146,7 @@ export function RecordPreviewForm({
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
         {mode === "edit"
-          ? "保存済みの記録を編集できます。修正後は画面下の「変更を保存」をタップしてください。"
+          ? "保存済みの記録を編集できます。修正後は下にスクロールして「変更を保存」をタップしてください。"
           : "AIが要約した内容です。話した詳細と違う場合は、そのまま編集して保存できます。あとから記録詳細画面でも編集できます。"}
       </p>
 
@@ -292,8 +292,8 @@ export function RecordPreviewForm({
         onChange={(kifuText) => setDraft((d) => ({ ...d, kifuText }))}
       />
 
-      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-[var(--color-border)] bg-[var(--color-bg-sub)]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-        <div className="mx-auto flex max-w-lg gap-3 p-4">{actionButtons}</div>
+      <div className="flex gap-3 border-t border-[var(--color-border)] pt-4">
+        {actionButtons}
       </div>
     </div>
   );

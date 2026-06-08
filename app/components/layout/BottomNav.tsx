@@ -20,13 +20,21 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/study-menu", label: "学習", icon: "study" },
 ];
 
+function isNavItemActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/records") {
+    return (
+      pathname.startsWith("/records") && !pathname.startsWith("/records/new")
+    );
+  }
+  return pathname.startsWith(href);
+}
+
 export function BottomNav() {
   const pathname = usePathname();
 
   const hidden =
-    pathname.startsWith("/records/new") ||
-    pathname.endsWith("/edit") ||
-    pathname.startsWith("/sign-in");
+    pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
   if (hidden) return null;
 
@@ -37,10 +45,7 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
         {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const active = isNavItemActive(pathname, item.href);
 
           return (
             <li key={item.href} className="flex-1">

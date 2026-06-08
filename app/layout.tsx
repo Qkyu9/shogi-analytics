@@ -41,7 +41,9 @@ export default function RootLayout({
       <html lang="ja">
         <body className="min-h-dvh bg-[var(--color-bg)]">
           <AuthBootstrap />
-          <div className="mx-auto min-h-dvh max-w-lg pb-20">{children}</div>
+          <div className="mx-auto min-h-dvh max-w-lg pb-[calc(3.5rem+env(safe-area-inset-bottom)+0.5rem)]">
+            {children}
+          </div>
           <BottomNav />
         </body>
       </html>
