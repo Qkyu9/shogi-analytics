@@ -301,8 +301,8 @@ export function VoiceRecorder() {
         <ol className="space-y-2 text-sm">
           {[
             { label: "対局形式", example: "棋の音、将棋ウォーズ10切れ　など" },
-            { label: "戦型", example: "例）私は左美濃、相手は持久戦矢倉" },
             { label: "相手の段位・級位", example: "例）棋の音の初段" },
+            { label: "戦型", example: "例）私は左美濃、相手は持久戦矢倉" },
             { label: "問題局面までの流れ", example: "大まかな経緯" },
             { label: "局面での判断とその理由", example: "" },
             { label: "敗因・疑問手だった理由", example: "" },
