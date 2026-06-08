@@ -2,21 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavPhotoIcon } from "@/app/components/ui/NavPhotoIcon";
 import { cn } from "@/app/lib/utils";
 
 type NavItem = {
   href: string;
   label: string;
-  icon: string;
+  icon: "home" | "records" | "record" | "analysis" | "study";
   highlight?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "ホーム", icon: "🏠" },
-  { href: "/records", label: "記録", icon: "📋" },
-  { href: "/records/new", label: "記録する", icon: "🎤", highlight: true },
-  { href: "/analysis", label: "分析", icon: "📊" },
-  { href: "/study-menu", label: "学習", icon: "📚" },
+  { href: "/", label: "ホーム", icon: "home" },
+  { href: "/records", label: "記録", icon: "records" },
+  { href: "/records/new", label: "記録する", icon: "record", highlight: true },
+  { href: "/analysis", label: "分析", icon: "analysis" },
+  { href: "/study-menu", label: "学習", icon: "study" },
 ];
 
 export function BottomNav() {
@@ -52,9 +53,7 @@ export function BottomNav() {
                   item.highlight && !active && "text-[var(--color-primary)]"
                 )}
               >
-                <span className="text-lg" aria-hidden>
-                  {item.icon}
-                </span>
+                <NavPhotoIcon variant={item.icon} active={active} />
                 {item.label}
               </Link>
             </li>

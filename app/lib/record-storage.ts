@@ -93,6 +93,12 @@ export async function getAllRecordSummaries(): Promise<GameRecordSummary[]> {
   return records;
 }
 
+export async function deleteRecord(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/records/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function getRecordDetail(
   id: string
 ): Promise<GameRecordDetail | null> {

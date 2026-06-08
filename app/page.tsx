@@ -3,7 +3,7 @@ import { HomeWeaknessCard } from "@/app/components/home/HomeWeaknessCard";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { RecordsView } from "@/app/components/records/RecordsView";
 import { Button } from "@/app/components/ui/Button";
-import { Card } from "@/app/components/ui/Card";
+import { FeaturePhotoCard } from "@/app/components/ui/FeaturePhotoCard";
 
 export default function HomePage() {
   return (
@@ -33,20 +33,10 @@ export default function HomePage() {
 
         <section className="grid grid-cols-2 gap-3">
           <Link href="/analysis">
-            <Card className="text-center">
-              <span className="text-2xl" aria-hidden>
-                📊
-              </span>
-              <p className="mt-1 text-sm font-semibold">弱点分析</p>
-            </Card>
+            <FeaturePhotoCard title="弱点分析" variant="analysis" />
           </Link>
           <Link href="/study-menu">
-            <Card className="text-center">
-              <span className="text-2xl" aria-hidden>
-                📚
-              </span>
-              <p className="mt-1 text-sm font-semibold">学習メニュー</p>
-            </Card>
+            <FeaturePhotoCard title="学習メニュー" variant="study" />
           </Link>
         </section>
       </main>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGameRecordDetail } from "@/lib/data/game-records";
+import { deleteGameRecord, getGameRecordDetail } from "@/lib/data/game-records";
 import { getSupabaseUserByClerkId } from "@/lib/supabase/auth-helpers";
 
 export async function GET(
@@ -23,6 +23,32 @@ export async function GET(
     console.error("GET /api/records/[id] error:", error);
     return NextResponse.json(
       { error: "記録の取得に失敗しました" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getSupabaseUserByClerkId();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const deleted = await deleteGameRecord(user.id, id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /api/records/[id] error:", error);
+    return NextResponse.json(
+      { error: "記録の削除に失敗しました" },
       { status: 500 }
     );
   }

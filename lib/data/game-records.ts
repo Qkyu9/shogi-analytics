@@ -208,6 +208,21 @@ function recordFingerprint(
   ].join("|");
 }
 
+export async function deleteGameRecord(
+  userId: string,
+  recordId: string
+): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  const { error, count } = await supabase
+    .from("game_records")
+    .delete({ count: "exact" })
+    .eq("user_id", userId)
+    .eq("id", recordId);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export async function migrateGameRecords(
   userId: string,
   records: GameRecordDetail[]

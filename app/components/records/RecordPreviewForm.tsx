@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearDraft } from "@/app/lib/draft-storage";
+import { clearTranscriptCache } from "@/app/lib/transcript-cache";
 import { saveRecord } from "@/app/lib/record-storage";
 import { Button } from "@/app/components/ui/Button";
 import { KifuPasteArea } from "./KifuPasteArea";
@@ -78,6 +79,7 @@ export function RecordPreviewForm({
     try {
       const id = await saveRecord(draft);
       clearDraft();
+      clearTranscriptCache();
       setSaved(true);
       router.push(`/records/${id}`);
     } catch {

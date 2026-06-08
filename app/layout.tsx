@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   description: "対局振り返りと弱点分析・学習メニュー提案",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon-192.svg",
+    icon: "/icon-192.jpg",
+    apple: "/icon-192.jpg",
   },
   appleWebApp: {
     capable: true,

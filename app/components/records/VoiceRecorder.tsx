@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
-import { Card } from "@/app/components/ui/Card";
 import { saveDraft } from "@/app/lib/draft-storage";
 import type { GameRecordDraft } from "@/app/lib/types";
 import {
@@ -24,6 +23,14 @@ type RecorderState =
   | "summarizing";
 type ProcessingStep = "transcribing" | "correcting" | "summarizing" | null;
 
+function MicButtonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-9 w-9 text-white" fill="currentColor" aria-hidden>
+      <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z" />
+    </svg>
+  );
+}
+
 export function VoiceRecorder() {
   const router = useRouter();
   const [state, setState] = useState<RecorderState>("idle");
@@ -31,6 +38,7 @@ export function VoiceRecorder() {
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState<CachedVoiceText | null>(null);
+  const [showCacheOptions, setShowCacheOptions] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -188,10 +196,12 @@ export function VoiceRecorder() {
   const handleClearCache = () => {
     clearTranscriptCache();
     setCached(null);
+    setShowCacheOptions(false);
   };
 
   const startRecording = async () => {
     setError(null);
+    setShowCacheOptions(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -261,6 +271,8 @@ export function VoiceRecorder() {
     state === "correcting" ||
     state === "summarizing";
 
+  const hasCache = state === "idle" && cached && !isProcessing;
+
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8">
       <p className="text-center text-sm leading-relaxed text-[var(--color-text-sub)]">
@@ -270,20 +282,26 @@ export function VoiceRecorder() {
         詳しく話すほど要約の精度が上がります。
       </p>
 
+      {hasCache && (
+        <p className="text-center text-xs font-medium text-[var(--color-primary)]">
+          下のマイクをタップして、新しい対局を録音できます
+        </p>
+      )}
+
       <button
         type="button"
         onClick={handleMicClick}
         disabled={isProcessing}
-        aria-label={state === "recording" ? "録音を停止" : "録音を開始"}
-        className={`flex h-20 w-20 items-center justify-center rounded-full text-3xl text-white transition-colors ${
+        aria-label={state === "recording" ? "録音を停止" : "新しい対局を録音"}
+        className={`flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all ${
           state === "recording"
             ? "animate-pulse bg-[var(--color-danger)]"
             : isProcessing
               ? "bg-[var(--color-text-sub)]"
-              : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
+              : "bg-gradient-to-br from-amber-800 via-stone-800 to-slate-950 hover:brightness-110"
         }`}
       >
-        🎤
+        <MicButtonIcon />
       </button>
 
       {state === "recording" && (
@@ -312,43 +330,49 @@ export function VoiceRecorder() {
         </div>
       )}
 
-      {state === "idle" && cached && !isProcessing && (
-        <Card className="w-full max-w-sm">
-          <h2 className="text-sm font-semibold">保存済みの文字起こし</h2>
-          <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-            {formatCacheDate(cached.savedAt)} に保存
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-sub)]">
-            {transcriptPreview(cached.transcript)}
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            {cached.draft ? (
-              <Button fullWidth onClick={handleOpenCachedDraft}>
-                保存済みの要約を開く（録音不要）
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={handleUseCachedTranscript}
-            >
-              文字起こしから要約を作る（録音不要）
-            </Button>
-            <button
-              type="button"
-              onClick={handleClearCache}
-              className="text-xs text-[var(--color-text-sub)] underline"
-            >
-              保存した文字起こしを削除
-            </button>
-          </div>
-        </Card>
-      )}
-
       {state === "idle" && !error && (
         <p className="text-center text-xs text-[var(--color-text-sub)]">
           録音後は文字起こし→将棋用語補正→要約の順で処理します。
         </p>
+      )}
+
+      {hasCache && (
+        <section className="w-full max-w-sm rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3">
+          <button
+            type="button"
+            onClick={() => setShowCacheOptions((v) => !v)}
+            className="flex w-full items-center justify-between text-left text-xs text-[var(--color-text-sub)]"
+          >
+            <span>前の対局の下書き（{formatCacheDate(cached.savedAt)}）</span>
+            <span>{showCacheOptions ? "閉じる" : "開く"}</span>
+          </button>
+          {showCacheOptions && (
+            <div className="mt-3 flex flex-col gap-2">
+              <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
+                {transcriptPreview(cached.transcript)}
+              </p>
+              {cached.draft ? (
+                <Button variant="secondary" fullWidth onClick={handleOpenCachedDraft}>
+                  下書きの要約を開く
+                </Button>
+              ) : null}
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={handleUseCachedTranscript}
+              >
+                文字起こしから要約を作る
+              </Button>
+              <button
+                type="button"
+                onClick={handleClearCache}
+                className="text-xs text-[var(--color-text-sub)] underline"
+              >
+                下書きを削除
+              </button>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
