@@ -25,6 +25,7 @@ export function BottomNav() {
 
   const hidden =
     pathname.startsWith("/records/new") ||
+    pathname.endsWith("/edit") ||
     pathname.startsWith("/sign-in");
 
   if (hidden) return null;
