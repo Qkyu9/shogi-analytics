@@ -31,12 +31,10 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--color-text-sub)]">
             温かみのあるトーン3パターンを比較できます。
           </p>
-          <Link
-            href="/theme-preview"
-            className="mt-3 inline-block text-sm text-[var(--color-primary)]"
-          >
-            テーマ候補を見る →
-          </Link>
+          <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--color-primary)]">
+            <Link href="/theme-preview">アプリ内で比較 →</Link>
+            <Link href="/theme-previews/index.html">HTMLで比較（A/B/C） →</Link>
+          </div>
         </Card>
 
         <Card>

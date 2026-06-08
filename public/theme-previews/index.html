@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UIテーマ候補 — 将棋 Analytics</title>
+    <link rel="stylesheet" href="/theme-previews/styles.css" />
+    <style>
+      .hub-list {
+        max-width: 420px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .hub-card {
+        display: block;
+        padding: 16px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid #ddd6cb;
+        text-decoration: none;
+        color: inherit;
+      }
+      .hub-card h2 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .hub-card p {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #6f6860;
+        line-height: 1.5;
+      }
+      .hub-card span {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #9a6842;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <h1>UIカラー候補（3パターン）</h1>
+      <p>
+        分析・学習アイコンはそのままに、画面全体を温かみのあるトーンにする案です。
+        それぞれのHTMLを開いて比較し、好みのパターン（A / B / C）を選んでください。
+      </p>
+    </div>
+
+    <div class="hub-list">
+      <a class="hub-card" href="/theme-previews/a.html">
+        <h2>A. クリーム＆ゴールド</h2>
+        <p>明るいクリーム色の背景に、落ち着いたゴールドを差し色にしたパターン。落ち着き・上品さ。</p>
+        <span>プレビューを開く →</span>
+      </a>
+      <a class="hub-card" href="/theme-previews/b.html">
+        <h2>B. ウォームナチュラル</h2>
+        <p>リネンや木の温もりを感じるベージュ系。アクセントはコッパーブラウン。自然・やさしさ。</p>
+        <span>プレビューを開く →</span>
+      </a>
+      <a class="hub-card" href="/theme-previews/c.html">
+        <h2>C. ストーン＆アンバー</h2>
+        <p>温かみのあるストーングレーに、アンバー色をポイントで入れたパターン。シンプル・洗練。</p>
+        <span>プレビューを開く →</span>
+      </a>
+    </div>
+
+    <p class="note">
+      画像の表示にはローカルサーバーまたは本番URLが必要です。<br />
+      例: npm run dev 後に http://localhost:3000/theme-previews/index.html
+    </p>
+  </body>
+</html>
