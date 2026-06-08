@@ -1,1 +1,5 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'><rect width='512' height='512' fill='#2563eb' rx='102.4'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='230.4' fill='white' font-family='sans-serif'>将</text></svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' fill='#1e3a8a' rx='102.4'/>
+  <text x='50%' y='44%' dominant-baseline='middle' text-anchor='middle' font-size='96' fill='#fbbf24' font-family='sans-serif' font-weight='bold'>将棋</text>
+  <text x='50%' y='68%' dominant-baseline='middle' text-anchor='middle' font-size='72' fill='white' font-family='sans-serif' font-weight='bold'>Analytics</text>
+</svg>
