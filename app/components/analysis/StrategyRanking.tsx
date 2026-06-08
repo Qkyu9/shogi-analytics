@@ -32,38 +32,59 @@ export function StrategyRanking({
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-[var(--color-text)]">{title}</h2>
       <ul className="flex flex-col gap-4">
-        {stats.map((stat) => (
-          <li key={stat.strategy}>
-            <div className="mb-1 flex items-start justify-between gap-2 text-sm">
-              <span className="font-medium leading-snug">{stat.strategy}</span>
-              <span className="shrink-0 text-right text-[var(--color-text-sub)]">
-                <span className="block">{stat.total}局</span>
-                <span className="block text-xs">
-                  勝率 {stat.winRate}%（{recordBreakdown(stat)}）
+        {stats.map((stat) => {
+          const widthPct = Math.max(
+            (stat.total / maxTotal) * 100,
+            stat.total > 0 ? 8 : 0
+          );
+          const winPct = stat.total > 0 ? (stat.wins / stat.total) * 100 : 0;
+          const drawPct = stat.total > 0 ? (stat.draws / stat.total) * 100 : 0;
+          const lossPct = stat.total > 0 ? (stat.losses / stat.total) * 100 : 0;
+
+          return (
+            <li key={stat.strategy}>
+              <div className="mb-1.5 flex items-start justify-between gap-2 text-sm">
+                <span className="font-medium leading-snug">{stat.strategy}</span>
+                <span className="shrink-0 text-right text-[var(--color-text-sub)]">
+                  <span className="font-medium text-[var(--color-text)]">
+                    {stat.total}局
+                  </span>
+                  <span className="ml-1 text-xs">
+                    勝率 {stat.winRate}%（{recordBreakdown(stat)}）
+                  </span>
                 </span>
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-sub)]">
-                <div
-                  className="h-full rounded-full bg-[var(--color-primary)]"
-                  style={{ width: `${(stat.total / maxTotal) * 100}%` }}
-                  title={`採用 ${stat.total}局`}
-                />
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-sub)]">
+              <div className="h-3 w-full overflow-hidden rounded-sm bg-[var(--color-bg-sub)]">
                 <div
-                  className="h-full rounded-full bg-[var(--color-success)]"
-                  style={{ width: `${stat.winRate}%` }}
-                  title={`勝率 ${stat.winRate}%`}
-                />
+                  className="flex h-full min-w-0 overflow-hidden rounded-sm"
+                  style={{ width: `${widthPct}%` }}
+                >
+                  {winPct > 0 && (
+                    <div
+                      className="h-full bg-[var(--color-success)]"
+                      style={{ width: `${winPct}%` }}
+                    />
+                  )}
+                  {drawPct > 0 && (
+                    <div
+                      className="h-full bg-[var(--color-text-sub)]/45"
+                      style={{ width: `${drawPct}%` }}
+                    />
+                  )}
+                  {lossPct > 0 && (
+                    <div
+                      className="h-full bg-[var(--color-danger)]/75"
+                      style={{ width: `${lossPct}%` }}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
       <p className="text-xs text-[var(--color-text-sub)]">
-        上段バー＝採用回数、下段バー＝勝率（勝ちの割合）
+        棒の長さ＝対局数の多さ、色＝勝敗（緑＝勝・赤＝敗・灰＝分）
       </p>
     </section>
   );
