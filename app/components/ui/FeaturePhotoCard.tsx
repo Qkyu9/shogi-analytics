@@ -1,66 +1,42 @@
 import Image from "next/image";
 import { cn } from "@/app/lib/utils";
 
-const SHOGI_BOARD = "/images/shogi-board.jpg";
+const FEATURE_IMAGES = {
+  analysis: "/images/icon-analysis.png",
+  study: "/images/icon-study.png",
+} as const;
 
 type FeaturePhotoCardProps = {
   title: string;
-  subtitle?: string;
-  variant?: "analysis" | "study" | "default";
+  variant: keyof typeof FEATURE_IMAGES;
   className?: string;
-};
-
-const VARIANT_STYLES = {
-  analysis: {
-    overlay: "from-slate-950/75 via-slate-900/55 to-amber-950/40",
-    objectPosition: "object-[65%_40%]",
-  },
-  study: {
-    overlay: "from-amber-950/70 via-stone-900/50 to-slate-950/45",
-    objectPosition: "object-[40%_55%]",
-  },
-  default: {
-    overlay: "from-slate-950/70 via-slate-900/45 to-transparent",
-    objectPosition: "object-center",
-  },
 };
 
 export function FeaturePhotoCard({
   title,
-  subtitle,
-  variant = "default",
+  variant,
   className,
 }: FeaturePhotoCardProps) {
-  const style = VARIANT_STYLES[variant];
-
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-stone-800/20 shadow-md",
+        "relative overflow-hidden rounded-xl bg-[var(--color-surface)]",
         className
       )}
     >
-      <Image
-        src={SHOGI_BOARD}
-        alt=""
-        fill
-        sizes="(max-width: 512px) 50vw, 200px"
-        className={cn("object-cover", style.objectPosition)}
-        aria-hidden
-      />
-      <div
-        className={cn(
-          "absolute inset-0 bg-gradient-to-br",
-          style.overlay
-        )}
-        aria-hidden
-      />
-      <div className="relative flex min-h-[88px] flex-col justify-end p-3">
-        <p className="text-sm font-semibold text-white drop-shadow-sm">{title}</p>
-        {subtitle && (
-          <p className="mt-0.5 text-[10px] text-white/80">{subtitle}</p>
-        )}
+      <div className="relative aspect-[4/3] w-full">
+        <Image
+          src={FEATURE_IMAGES[variant]}
+          alt=""
+          fill
+          sizes="(max-width: 512px) 50vw, 200px"
+          className="object-cover"
+          aria-hidden
+        />
       </div>
+      <p className="px-3 py-2.5 text-sm font-medium text-[var(--color-text)]">
+        {title}
+      </p>
     </div>
   );
 }

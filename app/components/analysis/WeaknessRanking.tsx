@@ -18,7 +18,7 @@ export function WeaknessRanking({
       </p>
 
       {lowDataWarning && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-sub)]">
           記録が10件未満です。傾向は参考程度にご覧ください。
         </div>
       )}

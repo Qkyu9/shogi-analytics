@@ -15,11 +15,11 @@ export function StudyMenuCard({
       {allocations.map((item) => (
         <article
           key={item.item}
-          className="rounded-lg border border-[var(--color-border)] p-4"
+          className="rounded-xl bg-[var(--color-surface)] p-4"
         >
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-semibold">{item.item}</h3>
-            <span className="text-lg font-bold text-[var(--color-primary)]">
+            <h3 className="text-sm font-medium">{item.item}</h3>
+            <span className="text-base font-medium text-[var(--color-primary)]">
               {item.percentage}%
             </span>
           </div>
@@ -28,7 +28,7 @@ export function StudyMenuCard({
               1日 {item.dailyCount} 問
             </p>
           )}
-          <p className="mt-3 border-t border-[var(--color-border)] pt-3 text-sm leading-relaxed text-[var(--color-text-sub)]">
+          <p className="mt-3 pt-3 text-xs leading-relaxed text-[var(--color-text-sub)]">
             {item.reason}
           </p>
         </article>

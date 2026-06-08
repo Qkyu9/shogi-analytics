@@ -90,7 +90,7 @@ export function RecordPreviewForm({
   return (
     <div className="flex flex-col gap-6 px-4 pb-28 pt-4">
       {saved && (
-        <div className="rounded-lg bg-green-50 p-3 text-sm text-[var(--color-success)]">
+        <div className="rounded-lg bg-[var(--color-surface)] p-3 text-sm text-[var(--color-success)]">
           保存しました
         </div>
       )}
@@ -261,7 +261,7 @@ export function RecordPreviewForm({
         onChange={(kifuText) => setDraft((d) => ({ ...d, kifuText }))}
       />
 
-      <div className="fixed bottom-0 left-0 right-0 flex gap-3 border-t border-[var(--color-border)] bg-white p-4">
+      <div className="fixed bottom-0 left-0 right-0 flex gap-3 border-t border-[var(--color-border)] bg-[var(--color-bg-sub)] p-4">
         <Button
           variant="secondary"
           onClick={() => {

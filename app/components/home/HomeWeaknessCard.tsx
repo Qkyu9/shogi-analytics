@@ -23,18 +23,18 @@ export function HomeWeaknessCard() {
 
   return (
     <Card>
-      <h2 className="text-sm font-semibold text-[var(--color-text-sub)]">
-        いまの弱点（直近）
-      </h2>
-      <p className="mt-2 text-lg font-bold">{top.tag}</p>
-      <p className="mt-1 text-sm text-[var(--color-text-sub)]">
-        {top.count}回出現（{top.percentage}%）
+      <p className="text-xs text-[var(--color-text-sub)]">いまの弱点</p>
+      <p className="mt-1 text-base font-medium text-[var(--color-text)]">
+        {top.tag}
+      </p>
+      <p className="mt-0.5 text-xs text-[var(--color-text-sub)]">
+        {top.count}回（{top.percentage}%）
       </p>
       <Link
         href="/analysis"
-        className="mt-3 inline-block text-sm text-[var(--color-primary)]"
+        className="mt-3 inline-block text-xs text-[var(--color-primary)]"
       >
-        詳しく見る →
+        詳しく見る
       </Link>
     </Card>
   );

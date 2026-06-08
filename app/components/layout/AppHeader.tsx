@@ -13,29 +13,33 @@ export function AppHeader({
 }) {
   return (
     <header className="flex min-h-14 items-center justify-between border-b border-[var(--color-border)] px-4">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-3">
         {backHref ? (
           <Link
             href={backHref}
-            className="shrink-0 text-sm text-[var(--color-primary)]"
+            className="shrink-0 text-sm text-[var(--color-text-sub)] hover:text-[var(--color-text)]"
             aria-label="戻る"
           >
-            ← 戻る
+            ←
           </Link>
         ) : (
-          <span className="text-lg font-bold">将棋 Analytics</span>
+          <span className="text-sm font-medium tracking-wide text-[var(--color-text)]">
+            将棋 Analytics
+          </span>
         )}
         {backHref && (
-          <h1 className="truncate text-base font-semibold">{title}</h1>
+          <h1 className="truncate text-sm font-medium text-[var(--color-text)]">
+            {title}
+          </h1>
         )}
       </div>
       {actionHref && (
         <Link
           href={actionHref}
-          className="shrink-0 text-sm text-[var(--color-text-sub)]"
+          className="shrink-0 text-sm text-[var(--color-text-sub)] hover:text-[var(--color-primary)]"
           aria-label={actionLabel}
         >
-          {actionLabel === "設定" ? "⚙" : actionLabel}
+          {actionLabel}
         </Link>
       )}
     </header>

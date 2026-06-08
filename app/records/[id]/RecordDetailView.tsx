@@ -75,7 +75,7 @@ export function RecordDetailView({ id }: { id: string }) {
       {record.positions.map((pos, index) => (
         <section
           key={pos.sortOrder}
-          className="rounded-lg border border-[var(--color-border)] p-4"
+          className="rounded-xl bg-[var(--color-surface)] p-4"
         >
           <h2 className="text-sm font-semibold">局面 {index + 1}</h2>
           <dl className="mt-3 flex flex-col gap-3 text-sm">
@@ -104,7 +104,7 @@ export function RecordDetailView({ id }: { id: string }) {
       {record.kifuText && (
         <section>
           <h2 className="mb-2 text-sm font-semibold">棋譜</h2>
-          <pre className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3 font-mono text-xs whitespace-pre-wrap">
+          <pre className="overflow-x-auto rounded-xl bg-[var(--color-bg-sub)] p-3 font-mono text-xs whitespace-pre-wrap">
             {record.kifuText}
           </pre>
         </section>

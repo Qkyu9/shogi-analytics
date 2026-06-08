@@ -4,8 +4,8 @@
   "description": "対局振り返りと弱点分析・学習メニュー提案",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#0c0f14",
+  "theme_color": "#0c0f14",
   "orientation": "portrait",
   "lang": "ja",
   "icons": [

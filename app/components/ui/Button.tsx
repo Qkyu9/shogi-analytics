@@ -15,14 +15,16 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex min-h-12 items-center justify-center rounded-lg px-4 text-base font-semibold transition-colors disabled:opacity-50",
+        "inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors disabled:opacity-50",
         fullWidth && "w-full",
         variant === "primary" &&
-          "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]",
+          "bg-[var(--color-primary)] text-[var(--color-bg)] hover:bg-[var(--color-primary-hover)]",
         variant === "secondary" &&
-          "border border-[var(--color-border)] bg-white text-[var(--color-text)] hover:bg-[var(--color-bg-sub)]",
-        variant === "danger" && "bg-[var(--color-danger)] text-white",
-        variant === "ghost" && "text-[var(--color-primary)] hover:bg-[var(--color-bg-sub)]",
+          "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]",
+        variant === "danger" &&
+          "bg-[var(--color-danger)]/90 text-white hover:bg-[var(--color-danger)]",
+        variant === "ghost" &&
+          "text-[var(--color-primary)] hover:bg-[var(--color-surface)]",
         className
       )}
       {...props}

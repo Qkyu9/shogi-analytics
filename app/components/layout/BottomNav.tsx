@@ -31,7 +31,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-white pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-bg-sub)] pb-[env(safe-area-inset-bottom)]"
       aria-label="メインナビゲーション"
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
@@ -46,11 +46,10 @@ export function BottomNav() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs",
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px]",
                   active
-                    ? "text-[var(--color-primary)] font-semibold"
-                    : "text-[var(--color-text-sub)]",
-                  item.highlight && !active && "text-[var(--color-primary)]"
+                    ? "text-[var(--color-primary)]"
+                    : "text-[var(--color-text-sub)]"
                 )}
               >
                 <NavPhotoIcon variant={item.icon} active={active} />
