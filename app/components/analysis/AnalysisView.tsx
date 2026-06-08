@@ -5,10 +5,7 @@ import { useEffect, useState } from "react";
 import { WeaknessRanking } from "@/app/components/analysis/WeaknessRanking";
 import { Button } from "@/app/components/ui/Button";
 import { computeTagStats } from "@/app/lib/record-stats";
-import {
-  ensureRecordsInitialized,
-  getAllRecordDetails,
-} from "@/app/lib/record-storage";
+import { getAllRecordDetails } from "@/app/lib/record-storage";
 import type { TagStat } from "@/app/lib/types";
 
 export function AnalysisView() {
@@ -17,11 +14,13 @@ export function AnalysisView() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    ensureRecordsInitialized();
-    const records = getAllRecordDetails();
-    setTotalRecords(records.length);
-    setStats(computeTagStats(records));
-    setReady(true);
+    getAllRecordDetails()
+      .then((records) => {
+        setTotalRecords(records.length);
+        setStats(computeTagStats(records));
+        setReady(true);
+      })
+      .catch(() => setReady(true));
   }, []);
 
   if (!ready) {

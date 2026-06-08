@@ -6,148 +6,115 @@ import type {
   GameRecordDetail,
   GameRecordDraft,
   GameRecordSummary,
-  GamePosition,
 } from "@/app/lib/types";
-import { VENUE_OPTIONS } from "@/app/lib/types";
 
 const STORAGE_KEY = "shogi-analytics-records";
 const SEED_INIT_KEY = "shogi-analytics-seed-initialized";
+const MIGRATED_KEY = "shogi-analytics-cloud-migrated";
 
-function isNonEmptyPosition(pos: GamePosition): boolean {
-  return !!(
-    pos.sceneDescription.trim() ||
-    pos.defeatCause.trim() ||
-    pos.correctMove.trim() ||
-    pos.lesson.trim()
-  );
+function stripLegacyMocks(records: GameRecordDetail[]): GameRecordDetail[] {
+  const legacy = new Set(LEGACY_MOCK_RECORD_IDS);
+  return records.filter((r) => !legacy.has(r.id));
 }
 
-function venueLabel(type: GameRecordDraft["venueType"]): string {
-  return VENUE_OPTIONS.find((v) => v.value === type)?.label ?? type;
-}
-
-function draftToDetail(draft: GameRecordDraft, id: string): GameRecordDetail {
-  const positions = draft.positions
-    .filter(isNonEmptyPosition)
-    .map((p, index) => ({
-      sceneDescription: p.sceneDescription.trim(),
-      defeatCause: p.defeatCause.trim(),
-      correctMove: p.correctMove.trim(),
-      lesson: p.lesson.trim(),
-      sortOrder: index,
-    }));
-
-  return {
-    id,
-    playedAt: draft.playedAt,
-    venueType: draft.venueType,
-    venueLabel: venueLabel(draft.venueType),
-    result: draft.result,
-    myStrategy: draft.myStrategy.trim(),
-    opponentStrategy: draft.opponentStrategy.trim(),
-    tags: draft.tags,
-    positionCount: positions.length,
-    positions,
-    kifuText: draft.kifuText?.trim() || undefined,
-  };
-}
-
-function loadSavedDetails(): GameRecordDetail[] {
+function loadLocalRecords(): GameRecordDetail[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as GameRecordDetail[];
-    return Array.isArray(parsed) ? parsed : [];
+    return stripLegacyMocks(Array.isArray(parsed) ? parsed : []);
   } catch {
     return [];
   }
 }
 
-function persistSaved(details: GameRecordDetail[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(details));
+/** 初回のみローカルにシード投入（クラウド移行前のフォールバック） */
+export function ensureLocalSeed(): void {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem(SEED_INIT_KEY)) return;
+  if (loadLocalRecords().length === 0 && SEED_RECORDS.length > 0) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_RECORDS));
+  }
+  localStorage.setItem(SEED_INIT_KEY, "1");
 }
 
-function stripLegacyMocks(details: GameRecordDetail[]): GameRecordDetail[] {
-  const legacy = new Set(LEGACY_MOCK_RECORD_IDS);
-  return details.filter((r) => !legacy.has(r.id));
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+    credentials: "include",
+  });
+  const data = (await res.json()) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error ?? "通信に失敗しました");
+  }
+  return data;
 }
 
-/** 旧モックを除去し、空なら実記録シードを投入する */
-export function ensureRecordsInitialized(): void {
+/** ログイン後: Supabase 同期 + ローカル記録の移行 */
+export async function syncCloudRecords(): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const raw = loadSavedDetails();
-  let details = stripLegacyMocks(raw);
-  let changed = details.length !== raw.length;
+  await apiFetch<{ userId: string }>("/api/auth/sync", { method: "POST" });
 
-  if (!localStorage.getItem(SEED_INIT_KEY)) {
-    if (details.length === 0 && SEED_RECORDS.length > 0) {
-      details = SEED_RECORDS;
-      changed = true;
+  if (localStorage.getItem(MIGRATED_KEY)) return;
+
+  const local = loadLocalRecords();
+  if (local.length > 0) {
+    await apiFetch<{ imported: number }>("/api/records/migrate", {
+      method: "POST",
+      body: JSON.stringify({ records: local }),
+    });
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  localStorage.setItem(MIGRATED_KEY, "1");
+}
+
+export async function saveRecord(draft: GameRecordDraft): Promise<string> {
+  const { record } = await apiFetch<{ record: GameRecordDetail }>(
+    "/api/records",
+    {
+      method: "POST",
+      body: JSON.stringify(draft),
     }
-    localStorage.setItem(SEED_INIT_KEY, "1");
-  } else if (details.length === 0 && SEED_RECORDS.length > 0) {
-    details = SEED_RECORDS;
-    changed = true;
-  }
-
-  if (changed) {
-    persistSaved(details);
-  }
+  );
+  return record.id;
 }
 
-export function saveRecord(draft: GameRecordDraft): string {
-  ensureRecordsInitialized();
-  const id = `rec-${Date.now()}`;
-  const detail = draftToDetail(draft, id);
-  const existing = loadSavedDetails();
-  persistSaved([detail, ...existing]);
-  return id;
+export async function getAllRecordSummaries(): Promise<GameRecordSummary[]> {
+  const { records } = await apiFetch<{ records: GameRecordSummary[] }>(
+    "/api/records"
+  );
+  return records;
 }
 
-export function getSavedRecord(id: string): GameRecordDetail | null {
-  ensureRecordsInitialized();
-  return loadSavedDetails().find((r) => r.id === id) ?? null;
-}
-
-export function getAllRecordSummaries(): GameRecordSummary[] {
-  ensureRecordsInitialized();
-  return loadSavedDetails()
-    .map(
-      ({
-        id,
-        playedAt,
-        venueType,
-        venueLabel: vl,
-        result,
-        myStrategy,
-        opponentStrategy,
-        tags,
-        positionCount,
-      }) => ({
-        id,
-        playedAt,
-        venueType,
-        venueLabel: vl,
-        result,
-        myStrategy,
-        opponentStrategy,
-        tags,
-        positionCount,
-      })
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
+export async function getRecordDetail(
+  id: string
+): Promise<GameRecordDetail | null> {
+  try {
+    const { record } = await apiFetch<{ record: GameRecordDetail }>(
+      `/api/records/${id}`
     );
+    return record;
+  } catch {
+    return null;
+  }
 }
 
-export function getRecordDetail(id: string): GameRecordDetail | null {
-  return getSavedRecord(id);
+export async function getAllRecordDetails(): Promise<GameRecordDetail[]> {
+  const summaries = await getAllRecordSummaries();
+  const details = await Promise.all(
+    summaries.map((s) => getRecordDetail(s.id))
+  );
+  return details.filter((d): d is GameRecordDetail => d !== null);
 }
 
-export function getAllRecordDetails(): GameRecordDetail[] {
-  ensureRecordsInitialized();
-  return loadSavedDetails();
+/** @deprecated syncCloudRecords を使用 */
+export function ensureRecordsInitialized(): void {
+  ensureLocalSeed();
 }

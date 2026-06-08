@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { AuthBootstrap } from "@/app/components/auth/AuthBootstrap";
 import { BottomNav } from "@/app/components/layout/BottomNav";
 import "./globals.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "将棋 Analytics",
@@ -30,11 +34,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja">
-      <body className="min-h-dvh bg-[var(--color-bg)]">
-        <div className="mx-auto min-h-dvh max-w-lg pb-20">{children}</div>
-        <BottomNav />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="ja">
+        <body className="min-h-dvh bg-[var(--color-bg)]">
+          <AuthBootstrap />
+          <div className="mx-auto min-h-dvh max-w-lg pb-20">{children}</div>
+          <BottomNav />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

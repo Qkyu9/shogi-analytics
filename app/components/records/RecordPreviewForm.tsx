@@ -75,7 +75,7 @@ export function RecordPreviewForm({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const id = saveRecord(draft);
+      const id = await saveRecord(draft);
       clearDraft();
       setSaved(true);
       router.push(`/records/${id}`);

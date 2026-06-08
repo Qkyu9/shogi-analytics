@@ -4,19 +4,19 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card } from "@/app/components/ui/Card";
 import { computeTagStats } from "@/app/lib/record-stats";
-import {
-  ensureRecordsInitialized,
-  getAllRecordDetails,
-} from "@/app/lib/record-storage";
+import { getAllRecordDetails } from "@/app/lib/record-storage";
 import type { TagStat } from "@/app/lib/types";
 
 export function HomeWeaknessCard() {
   const [top, setTop] = useState<TagStat | null>(null);
 
   useEffect(() => {
-    ensureRecordsInitialized();
-    const stats = computeTagStats(getAllRecordDetails());
-    setTop(stats[0] ?? null);
+    getAllRecordDetails()
+      .then((records) => {
+        const stats = computeTagStats(records);
+        setTop(stats[0] ?? null);
+      })
+      .catch(() => setTop(null));
   }, []);
 
   if (!top) return null;

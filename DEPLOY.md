@@ -5,6 +5,12 @@
 - GitHub: https://github.com/Qkyu9/shogi-analytics
 - `npm run build` 成功確認済み
 
+## Supabase + Clerk を接続する場合
+
+記録をクラウドに保存するには、**[CONNECT.md](./CONNECT.md)** の手順に従ってください（約20〜30分）。
+
+---
+
 ## あなたが行う手順（約10分）
 
 ### 1. Vercel にインポート

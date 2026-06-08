@@ -20,7 +20,7 @@ export async function ensureSupabaseUser() {
     .upsert(
       {
         clerk_user_id: userId,
-        email: user.emailAddresses[0].emailAddress,
+        email: user.emailAddresses[0]?.emailAddress ?? "",
         full_name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || null,
         // 必要に応じて他のフィールドも同期
       },

@@ -4,10 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TagChip } from "@/app/components/ui/TagChip";
-import {
-  ensureRecordsInitialized,
-  getRecordDetail,
-} from "@/app/lib/record-storage";
+import { getRecordDetail } from "@/app/lib/record-storage";
 import type { GameRecordDetail } from "@/app/lib/types";
 import { formatDateTime, resultLabel } from "@/app/lib/utils";
 
@@ -17,14 +14,16 @@ export function RecordDetailView({ id }: { id: string }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    ensureRecordsInitialized();
-    const detail = getRecordDetail(id);
-    if (!detail) {
-      router.replace("/records");
-      return;
-    }
-    setRecord(detail);
-    setReady(true);
+    getRecordDetail(id)
+      .then((detail) => {
+        if (!detail) {
+          router.replace("/records");
+          return;
+        }
+        setRecord(detail);
+        setReady(true);
+      })
+      .catch(() => router.replace("/records"));
   }, [id, router]);
 
   if (!ready || !record) {

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { Card } from "@/app/components/ui/Card";
 
@@ -8,13 +8,13 @@ export default function SettingsPage() {
       <AppHeader title="設定" backHref="/" />
       <main className="flex flex-col gap-4 px-4 py-6">
         <Card>
-          <h2 className="text-sm font-semibold">ユーザー</h2>
-          <p className="mt-2 text-sm text-[var(--color-text-sub)]">
-            本人（デモモード）
-          </p>
-          <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-            ※ 認証機能は次のフェーズで実装予定
-          </p>
+          <h2 className="text-sm font-semibold">アカウント</h2>
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-sm text-[var(--color-text-sub)]">
+              ログイン中のアカウント
+            </p>
+            <UserButton afterSignOutUrl="/sign-in" />
+          </div>
         </Card>
 
         <Card>
@@ -26,17 +26,14 @@ export default function SettingsPage() {
         </Card>
 
         <Card>
-          <h2 className="text-sm font-semibold">アカウント</h2>
-          <Link
-            href="/sign-in"
-            className="mt-2 inline-block text-sm text-[var(--color-primary)]"
-          >
-            ログイン（プレースホルダ）
-          </Link>
+          <h2 className="text-sm font-semibold">データの保存先</h2>
+          <p className="mt-2 text-sm text-[var(--color-text-sub)]">
+            対局記録は Supabase（クラウド）に保存されます。ログインした端末から同じ記録にアクセスできます。
+          </p>
         </Card>
 
         <p className="text-center text-xs text-[var(--color-text-sub)]">
-          将棋 Analytics v0.1（フロントエンドデモ）
+          将棋 Analytics v0.2
         </p>
       </main>
     </>
