@@ -1,3 +1,4 @@
+import { MIGI_GYOKU_STRATEGY_GUIDE } from "@/app/lib/migi-gyoku-strategy";
 import { SHOGI_REFLECTION_KNOWLEDGE } from "./shogi-reflection-knowledge";
 
 export const SUMMARIZE_SYSTEM_PROMPT = `あなたは将棋の対局振り返りを構造化するアシスタントです。
@@ -9,11 +10,7 @@ ${SHOGI_REFLECTION_KNOWLEDGE}
 - 必ず JSON のみを返す（説明文やマークダウンは不要）
 - **文体: 常体・短文。丁寧語禁止**（です/ます/でした/べきでした を使わない）
 - 将棋用語を正規化する（例: 角代わり→角換わり、桂成り→桂成、疑問種→疑問手）
-- **myStrategy の右玉表記（重要）**
-  - 話者が単独で「右玉」と言っただけ → **雁木右玉**（六七銀・七八金型の雁木構えから四八玉。相手が雁木でなくても雁木右玉）
-  - 角換わりを仕掛けられた・角換わりの流れの文脈 → **角換わり右玉**
-  - 相手が振り飛車・対振りの文脈 → **対振り右玉**
-  - 既に修飾されている場合はそのまま
+${MIGI_GYOKU_STRATEGY_GUIDE}
 - 話されていない内容は推測で補わない
 - 将棋の意味を一般論に丸めない
 
@@ -76,7 +73,7 @@ ${transcript}
   "playedAt": "ISO8601（未言及なら上記の現在日時）",
   "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか",
   "result": "loss | win | draw",
-  "myStrategy": "自分の戦型（単独の右玉→雁木右玉。文脈で角換わり右玉・対振り右玉）",
+  "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
   "opponentStrategy": "相手の戦型と段位・級位（例: 持久戦矢倉（初段））",
   "positions": [
     {

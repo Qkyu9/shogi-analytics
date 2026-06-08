@@ -12,7 +12,7 @@ export const SHOGI_CORRECTION_SEED: ShogiCorrection[] = [
   { wrong: "8号系", correct: "8五桂", note: "8五の桂打ち・桂跳ね" },
   { wrong: "８号系", correct: "8五桂" },
   { wrong: "8号形", correct: "8五桂" },
-  { wrong: "右翼", correct: "右玉", note: "戦型名（後処理で雁木右玉等に展開）" },
+  { wrong: "右翼", correct: "右玉", note: "戦型名（文脈で雁木右玉・角換わり右玉・対振り右玉に展開）" },
   { wrong: "一定存", correct: "角換わり" },
   { wrong: "角代わり", correct: "角換わり", note: "表記統一" },
   { wrong: "木の音", correct: "棋の音" },

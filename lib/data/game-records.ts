@@ -327,7 +327,7 @@ export async function migrateGameRecords(
   return imported;
 }
 
-/** 既存記録の my_strategy が単独の「右玉」なら「雁木右玉」に一括更新 */
+/** 既存記録の my_strategy が単独の「右玉」なら「雁木右玉」（六七銀八七金型雁木→四八玉）に一括更新 */
 export async function fixBareMigiGyokuStrategies(
   userId?: string
 ): Promise<{ updated: number; ids: string[] }> {
