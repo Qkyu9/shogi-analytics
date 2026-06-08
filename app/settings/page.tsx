@@ -1,5 +1,4 @@
 import { UserButton } from "@clerk/nextjs";
-import Link from "next/link";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { Card } from "@/app/components/ui/Card";
 
@@ -24,17 +23,6 @@ export default function SettingsPage() {
           <p className="mt-1 text-xs text-[var(--color-text-sub)]">
             将来、ここから変更できるようにします
           </p>
-        </Card>
-
-        <Card>
-          <h2 className="text-sm font-semibold">UIカラーの候補</h2>
-          <p className="mt-2 text-sm text-[var(--color-text-sub)]">
-            温かみのあるトーン3パターンを比較できます。
-          </p>
-          <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--color-primary)]">
-            <Link href="/theme-preview">アプリ内で比較 →</Link>
-            <Link href="/theme-previews/index.html">HTMLで比較（A/B/C） →</Link>
-          </div>
         </Card>
 
         <Card>

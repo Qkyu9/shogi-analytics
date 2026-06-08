@@ -25,7 +25,7 @@ type ProcessingStep = "transcribing" | "correcting" | "summarizing" | null;
 
 function MicButtonIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-9 w-9 text-[var(--color-bg)]" fill="currentColor" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-9 w-9 text-[var(--color-surface)]" fill="currentColor" aria-hidden>
       <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z" />
     </svg>
   );

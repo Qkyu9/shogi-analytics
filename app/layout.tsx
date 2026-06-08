@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "将棋 Analytics",
   },
 };
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0c0f14",
+  themeColor: "#f6f1ea",
 };
 
 export default function RootLayout({

@@ -18,7 +18,7 @@ export function Button({
         "inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors disabled:opacity-50",
         fullWidth && "w-full",
         variant === "primary" &&
-          "bg-[var(--color-primary)] text-[var(--color-bg)] hover:bg-[var(--color-primary-hover)]",
+          "bg-[var(--color-primary)] text-[var(--color-surface)] hover:bg-[var(--color-primary-hover)]",
         variant === "secondary" &&
           "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]",
         variant === "danger" &&
