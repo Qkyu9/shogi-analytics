@@ -53,11 +53,8 @@ function AnalysisIcon({ active }: { active?: boolean }) {
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M5 20V12" />
-      <path d="M10 20V6" />
-      <path d="M15 20v-8" />
-      <path d="M20 20V9" />
-      <path d="M4 20h17" />
+      <circle cx="10.5" cy="10.5" r="5.5" />
+      <path d="M15 15l4.5 4.5" />
     </svg>
   );
 }
