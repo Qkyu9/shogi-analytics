@@ -31,6 +31,7 @@
    - `supabase/migrations/20250203_init_users.sql`
    - `supabase/migrations/20250608_game_records.sql`
    - `supabase/migrations/20250608_source_input_text.sql`（既存DBへの追加分。新規作成時も実行して問題ありません）
+   - `supabase/migrations/20250608_fix_bare_migi_gyoku.sql`（既存記録の単独「右玉」→「雁木右玉」。既存データがある場合のみ）
 3. 左メニュー **Table Editor** で `users` と `game_records` ができているか確認
 
 ### 1-3. API キーを控える

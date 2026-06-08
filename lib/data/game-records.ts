@@ -6,6 +6,10 @@ import type {
   VenueType,
 } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
+import {
+  bareMigiGyokuToGangi,
+  isBareMigiGyokuStrategy,
+} from "@/app/lib/migi-gyoku-strategy";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 function venueLabel(type: VenueType): string {
@@ -321,4 +325,39 @@ export async function migrateGameRecords(
     imported += 1;
   }
   return imported;
+}
+
+/** 既存記録の my_strategy が単独の「右玉」なら「雁木右玉」に一括更新 */
+export async function fixBareMigiGyokuStrategies(
+  userId?: string
+): Promise<{ updated: number; ids: string[] }> {
+  const supabase = createServiceRoleClient();
+  let query = supabase.from("game_records").select("id, user_id, my_strategy");
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const targets = (data ?? []).filter((row) =>
+    isBareMigiGyokuStrategy(row.my_strategy ?? "")
+  );
+
+  const ids: string[] = [];
+  for (const row of targets) {
+    const { error: updateError } = await supabase
+      .from("game_records")
+      .update({
+        my_strategy: bareMigiGyokuToGangi(row.my_strategy),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+
+    if (updateError) throw updateError;
+    ids.push(row.id);
+  }
+
+  return { updated: ids.length, ids };
 }
