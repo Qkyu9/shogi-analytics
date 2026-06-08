@@ -50,6 +50,15 @@ export type TagStat = {
   percentage: number;
 };
 
+export type StrategyStat = {
+  strategy: string;
+  total: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+};
+
 export type StudyAllocation = {
   item: string;
   percentage: number;
