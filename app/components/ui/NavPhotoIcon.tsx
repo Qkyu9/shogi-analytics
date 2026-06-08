@@ -1,24 +1,21 @@
-import Image from "next/image";
 import { cn } from "@/app/lib/utils";
-
-const FEATURE_IMAGES = {
-  analysis: "/images/icon-analysis.png",
-  study: "/images/icon-study.png",
-} as const;
 
 type NavPhotoIconProps = {
   variant: "home" | "records" | "record" | "analysis" | "study";
   active?: boolean;
 };
 
+const iconClass = (active?: boolean) =>
+  cn(
+    "h-5 w-5",
+    active ? "text-[var(--color-primary)]" : "text-[var(--color-text-sub)]"
+  );
+
 function HomeIcon({ active }: { active?: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className={cn(
-        "h-5 w-5",
-        active ? "text-[var(--color-primary)]" : "text-[var(--color-text-sub)]"
-      )}
+      className={iconClass(active)}
       fill="currentColor"
       aria-hidden
     >
@@ -31,13 +28,11 @@ function RecordsIcon({ active }: { active?: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className={cn(
-        "h-5 w-5",
-        active ? "text-[var(--color-primary)]" : "text-[var(--color-text-sub)]"
-      )}
+      className={iconClass(active)}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      strokeLinecap="round"
       aria-hidden
     >
       <rect x="5" y="3" width="14" height="18" rx="2" />
@@ -46,51 +41,67 @@ function RecordsIcon({ active }: { active?: boolean }) {
   );
 }
 
-function MicIcon() {
+function AnalysisIcon({ active }: { active?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 text-[var(--color-surface)]" fill="currentColor" aria-hidden>
-      <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z" />
+    <svg
+      viewBox="0 0 24 24"
+      className={iconClass(active)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 20V12" />
+      <path d="M10 20V6" />
+      <path d="M15 20v-8" />
+      <path d="M20 20V9" />
+      <path d="M4 20h17" />
     </svg>
   );
 }
 
-function FeatureNavIcon({
-  variant,
-  active,
-}: {
-  variant: keyof typeof FEATURE_IMAGES;
-  active?: boolean;
-}) {
+function StudyIcon({ active }: { active?: boolean }) {
   return (
-    <span
-      className={cn(
-        "relative block h-6 w-6 overflow-hidden rounded-md",
-        active && "ring-1 ring-[var(--color-primary)]"
-      )}
+    <svg
+      viewBox="0 0 24 24"
+      className={iconClass(active)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
     >
-      <Image
-        src={FEATURE_IMAGES[variant]}
-        alt=""
-        fill
-        sizes="24px"
-        className="object-cover"
-        aria-hidden
-      />
-    </span>
+      <path d="M12 6.5c-2.2 0-4.2.6-6 1.4v11.2c1.8-.7 3.8-1.2 6-1.2s4.2.5 6 1.2V7.9c-1.8-.8-3.8-1.4-6-1.4z" />
+      <path d="M12 6.5v11.9" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6 text-[var(--color-surface)]"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z" />
+    </svg>
   );
 }
 
 export function NavPhotoIcon({ variant, active }: NavPhotoIconProps) {
   if (variant === "home") return <HomeIcon active={active} />;
   if (variant === "records") return <RecordsIcon active={active} />;
+  if (variant === "analysis") return <AnalysisIcon active={active} />;
+  if (variant === "study") return <StudyIcon active={active} />;
 
-  if (variant === "record") {
-    return (
-      <span className="relative -mt-2 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary)] shadow-md">
-        <MicIcon />
-      </span>
-    );
-  }
-
-  return <FeatureNavIcon variant={variant} active={active} />;
+  return (
+    <span className="relative -mt-2 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary)] shadow-md">
+      <MicIcon />
+    </span>
+  );
 }
