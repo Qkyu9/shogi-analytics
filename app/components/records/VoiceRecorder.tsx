@@ -54,15 +54,21 @@ export function VoiceRecorder() {
   }, []);
 
   const pickMimeType = () => {
-    // iPhone/iPad Safari は mimeType 指定で "did not match expected pattern" エラーになるため完全スキップ
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    if (isIOS) return "";
+    // Safari全般（iPhone・iPad・macOS）はmimeType指定でエラーになるためスキップ
+    // Chrome/Firefox/Edgeは識別子にSafariも含むため、それらを除外してSafariのみ検出
+    const isSafari =
+      /Safari/.test(navigator.userAgent) &&
+      !/Chrome|CriOS|FxiOS|EdgA|OPR/.test(navigator.userAgent);
+    // iPadOS 13+ はデスクトップモードでMacintoshと表示されるため別途検出
+    const isIPadOS =
+      /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+
+    if (isSafari || isIPadOS) return "";
 
     const candidates = [
       "audio/webm;codecs=opus",
       "audio/webm",
       "audio/ogg;codecs=opus",
-      "audio/mp4",
     ];
     return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
   };
