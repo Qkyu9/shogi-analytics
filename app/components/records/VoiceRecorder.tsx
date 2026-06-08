@@ -54,11 +54,15 @@ export function VoiceRecorder() {
   }, []);
 
   const pickMimeType = () => {
+    // iPhone/iPad Safari は mimeType 指定で "did not match expected pattern" エラーになるため完全スキップ
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (isIOS) return "";
+
     const candidates = [
-      "audio/mp4",
       "audio/webm;codecs=opus",
       "audio/webm",
       "audio/ogg;codecs=opus",
+      "audio/mp4",
     ];
     return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
   };
@@ -229,8 +233,13 @@ export function VoiceRecorder() {
       timerRef.current = setInterval(() => {
         setDuration((d) => d + 1);
       }, 1000);
-    } catch {
-      setError("マイクの使用が許可されていません。設定から許可してください。");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("Permission") || msg.includes("NotAllowed") || msg.includes("denied")) {
+        setError("マイクの使用が許可されていません。設定から許可してください。");
+      } else {
+        setError("録音を開始できませんでした。ページを再読み込みしてもう一度お試しください。");
+      }
     }
   };
 
