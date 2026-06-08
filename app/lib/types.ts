@@ -1,0 +1,68 @@
+export type GameResult = "win" | "loss" | "draw";
+
+export type VenueType =
+  | "shogi_wars_10min"
+  | "shogi_wars_sprint"
+  | "kion"
+  | "other";
+
+export type GamePosition = {
+  sceneDescription: string;
+  defeatCause: string;
+  correctMove: string;
+  lesson: string;
+};
+
+export type GameRecordDraft = {
+  playedAt: string;
+  venueType: VenueType;
+  result: GameResult;
+  myStrategy: string;
+  opponentStrategy: string;
+  positions: GamePosition[];
+  tags: string[];
+  kifuText?: string;
+};
+
+export type GameRecordSummary = {
+  id: string;
+  playedAt: string;
+  venueType: VenueType;
+  venueLabel: string;
+  result: GameResult;
+  myStrategy: string;
+  opponentStrategy: string;
+  tags: string[];
+  positionCount: number;
+};
+
+export type GameRecordDetail = GameRecordSummary & {
+  positions: (GamePosition & { sortOrder: number })[];
+  kifuText?: string;
+};
+
+export type TagStat = {
+  tag: string;
+  count: number;
+  percentage: number;
+};
+
+export type StudyAllocation = {
+  item: string;
+  percentage: number;
+  dailyCount?: number;
+  reason: string;
+};
+
+export const VENUE_OPTIONS: { value: VenueType; label: string }[] = [
+  { value: "shogi_wars_10min", label: "将棋ウォーズ 10分切れ負け" },
+  { value: "shogi_wars_sprint", label: "将棋ウォーズ スプリント" },
+  { value: "kion", label: "棋の音" },
+  { value: "other", label: "その他" },
+];
+
+export const RESULT_LABELS: Record<GameResult, string> = {
+  win: "勝ち",
+  loss: "負け",
+  draw: "引き分け",
+};
