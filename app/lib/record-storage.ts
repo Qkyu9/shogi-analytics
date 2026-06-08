@@ -1,7 +1,7 @@
 import {
-  mockRecordDetails,
-  mockRecords,
-} from "@/app/lib/mock-data";
+  LEGACY_MOCK_RECORD_IDS,
+  SEED_RECORDS,
+} from "@/app/lib/seed-records";
 import type {
   GameRecordDetail,
   GameRecordDraft,
@@ -11,6 +11,7 @@ import type {
 import { VENUE_OPTIONS } from "@/app/lib/types";
 
 const STORAGE_KEY = "shogi-analytics-records";
+const SEED_INIT_KEY = "shogi-analytics-seed-initialized";
 
 function isNonEmptyPosition(pos: GamePosition): boolean {
   return !!(
@@ -67,7 +68,37 @@ function persistSaved(details: GameRecordDetail[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(details));
 }
 
+function stripLegacyMocks(details: GameRecordDetail[]): GameRecordDetail[] {
+  const legacy = new Set(LEGACY_MOCK_RECORD_IDS);
+  return details.filter((r) => !legacy.has(r.id));
+}
+
+/** 旧モックを除去し、空なら実記録シードを投入する */
+export function ensureRecordsInitialized(): void {
+  if (typeof window === "undefined") return;
+
+  const raw = loadSavedDetails();
+  let details = stripLegacyMocks(raw);
+  let changed = details.length !== raw.length;
+
+  if (!localStorage.getItem(SEED_INIT_KEY)) {
+    if (details.length === 0 && SEED_RECORDS.length > 0) {
+      details = SEED_RECORDS;
+      changed = true;
+    }
+    localStorage.setItem(SEED_INIT_KEY, "1");
+  } else if (details.length === 0 && SEED_RECORDS.length > 0) {
+    details = SEED_RECORDS;
+    changed = true;
+  }
+
+  if (changed) {
+    persistSaved(details);
+  }
+}
+
 export function saveRecord(draft: GameRecordDraft): string {
+  ensureRecordsInitialized();
   const id = `rec-${Date.now()}`;
   const detail = draftToDetail(draft, id);
   const existing = loadSavedDetails();
@@ -76,21 +107,47 @@ export function saveRecord(draft: GameRecordDraft): string {
 }
 
 export function getSavedRecord(id: string): GameRecordDetail | null {
+  ensureRecordsInitialized();
   return loadSavedDetails().find((r) => r.id === id) ?? null;
 }
 
 export function getAllRecordSummaries(): GameRecordSummary[] {
-  const saved = loadSavedDetails();
-  const savedIds = new Set(saved.map((r) => r.id));
-  const mockOnly = mockRecords.filter((r) => !savedIds.has(r.id));
-
-  return [...saved, ...mockOnly].sort(
-    (a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
-  );
+  ensureRecordsInitialized();
+  return loadSavedDetails()
+    .map(
+      ({
+        id,
+        playedAt,
+        venueType,
+        venueLabel: vl,
+        result,
+        myStrategy,
+        opponentStrategy,
+        tags,
+        positionCount,
+      }) => ({
+        id,
+        playedAt,
+        venueType,
+        venueLabel: vl,
+        result,
+        myStrategy,
+        opponentStrategy,
+        tags,
+        positionCount,
+      })
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
+    );
 }
 
 export function getRecordDetail(id: string): GameRecordDetail | null {
-  const saved = getSavedRecord(id);
-  if (saved) return saved;
-  return mockRecordDetails[id] ?? null;
+  return getSavedRecord(id);
+}
+
+export function getAllRecordDetails(): GameRecordDetail[] {
+  ensureRecordsInitialized();
+  return loadSavedDetails();
 }

@@ -1,13 +1,11 @@
 import Link from "next/link";
+import { HomeWeaknessCard } from "@/app/components/home/HomeWeaknessCard";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { RecordsView } from "@/app/components/records/RecordsView";
 import { Button } from "@/app/components/ui/Button";
 import { Card } from "@/app/components/ui/Card";
-import { mockWeaknessRanking } from "@/app/lib/mock-data";
 
 export default function HomePage() {
-  const topWeakness = mockWeaknessRanking[0];
-
   return (
     <>
       <AppHeader title="ホーム" actionHref="/settings" />
@@ -18,23 +16,7 @@ export default function HomePage() {
           </Link>
         </section>
 
-        {topWeakness && (
-          <Card>
-            <h2 className="text-sm font-semibold text-[var(--color-text-sub)]">
-              いまの弱点（直近）
-            </h2>
-            <p className="mt-2 text-lg font-bold">{topWeakness.tag}</p>
-            <p className="mt-1 text-sm text-[var(--color-text-sub)]">
-              {topWeakness.count}回出現（{topWeakness.percentage}%）
-            </p>
-            <Link
-              href="/analysis"
-              className="mt-3 inline-block text-sm text-[var(--color-primary)]"
-            >
-              詳しく見る →
-            </Link>
-          </Card>
-        )}
+        <HomeWeaknessCard />
 
         <section>
           <div className="mb-3 flex items-center justify-between">

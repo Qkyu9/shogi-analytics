@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { RecordPreviewForm } from "@/app/components/records/RecordPreviewForm";
 import { loadDraft } from "@/app/lib/draft-storage";
-import { mockDraftFromVoice } from "@/app/lib/mock-data";
 import type { GameRecordDraft } from "@/app/lib/types";
 
 export function PreviewClient() {
@@ -17,15 +16,15 @@ export function PreviewClient() {
 
   useEffect(() => {
     const stored = loadDraft();
-    if (stored?.draft) {
-      setDraft(stored.draft);
-      setTranscript(stored.transcript);
-      setRawTranscript(stored.rawTranscript);
-    } else {
-      setDraft(mockDraftFromVoice);
+    if (!stored?.draft) {
+      router.replace("/records/new");
+      return;
     }
+    setDraft(stored.draft);
+    setTranscript(stored.transcript);
+    setRawTranscript(stored.rawTranscript);
     setReady(true);
-  }, []);
+  }, [router]);
 
   if (!ready || !draft) {
     return (

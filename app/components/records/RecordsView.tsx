@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { RecordList } from "@/app/components/records/RecordList";
-import { getAllRecordSummaries } from "@/app/lib/record-storage";
+import {
+  ensureRecordsInitialized,
+  getAllRecordSummaries,
+} from "@/app/lib/record-storage";
 import type { GameRecordSummary } from "@/app/lib/types";
 
 export function RecordsView({ limit }: { limit?: number }) {
@@ -10,6 +13,7 @@ export function RecordsView({ limit }: { limit?: number }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    ensureRecordsInitialized();
     const all = getAllRecordSummaries();
     setRecords(limit ? all.slice(0, limit) : all);
     setReady(true);
