@@ -13,10 +13,6 @@ export function WeaknessRanking({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-[var(--color-text-sub)]">
-        総記録数: {totalRecords} 件
-      </p>
-
       {lowDataWarning && (
         <div className="rounded-lg bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-sub)]">
           記録が10件未満です。傾向は参考程度にご覧ください。

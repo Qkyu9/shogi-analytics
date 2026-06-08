@@ -1,6 +1,18 @@
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
 import { normalizeWeaknessTag } from "./weakness-tags";
 
+export type AnalysisPeriod = "all" | "month";
+
+export function filterRecordsByPeriod(
+  records: GameRecordDetail[],
+  period: AnalysisPeriod
+): GameRecordDetail[] {
+  if (period === "all") return records;
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 1);
+  return records.filter((record) => new Date(record.playedAt) >= cutoff);
+}
+
 type ResultBucket = { wins: number; losses: number; draws: number };
 
 function bumpBucket(bucket: ResultBucket, result: GameRecordDetail["result"]) {

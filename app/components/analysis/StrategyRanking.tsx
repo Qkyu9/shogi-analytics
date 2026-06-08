@@ -26,20 +26,12 @@ export function StrategyRanking({
     );
   }
 
-  const maxTotal = stats[0]?.total ?? 1;
-
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-[var(--color-text)]">{title}</h2>
       <ul className="flex flex-col gap-4">
         {stats.map((stat) => {
-          const widthPct = Math.max(
-            (stat.total / maxTotal) * 100,
-            stat.total > 0 ? 8 : 0
-          );
-          const winPct = stat.total > 0 ? (stat.wins / stat.total) * 100 : 0;
-          const drawPct = stat.total > 0 ? (stat.draws / stat.total) * 100 : 0;
-          const lossPct = stat.total > 0 ? (stat.losses / stat.total) * 100 : 0;
+          const winBarPct = stat.winRate;
 
           return (
             <li key={stat.strategy}>
@@ -54,37 +46,20 @@ export function StrategyRanking({
                   </span>
                 </span>
               </div>
-              <div className="h-3 w-full overflow-hidden rounded-sm bg-[var(--color-bg-sub)]">
-                <div
-                  className="flex h-full min-w-0 overflow-hidden rounded-sm"
-                  style={{ width: `${widthPct}%` }}
-                >
-                  {winPct > 0 && (
-                    <div
-                      className="h-full bg-[var(--color-success)]"
-                      style={{ width: `${winPct}%` }}
-                    />
-                  )}
-                  {drawPct > 0 && (
-                    <div
-                      className="h-full bg-[var(--color-text-sub)]/45"
-                      style={{ width: `${drawPct}%` }}
-                    />
-                  )}
-                  {lossPct > 0 && (
-                    <div
-                      className="h-full bg-[var(--color-danger)]/75"
-                      style={{ width: `${lossPct}%` }}
-                    />
-                  )}
-                </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-sub)]">
+                {winBarPct > 0 && (
+                  <div
+                    className="h-full rounded-full bg-[var(--color-primary)]"
+                    style={{ width: `${winBarPct}%` }}
+                  />
+                )}
               </div>
             </li>
           );
         })}
       </ul>
       <p className="text-xs text-[var(--color-text-sub)]">
-        棒の長さ＝対局数の多さ、色＝勝敗（緑＝勝・赤＝敗・灰＝分）
+        棒の長さ＝勝率（茶色）。0勝の戦型は棒が表示されません。
       </p>
     </section>
   );

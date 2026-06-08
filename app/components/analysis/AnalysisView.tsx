@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AnalysisPeriodTabs } from "@/app/components/analysis/AnalysisPeriodTabs";
 import { StrategyRanking } from "@/app/components/analysis/StrategyRanking";
 import { WeaknessRanking } from "@/app/components/analysis/WeaknessRanking";
 import { Button } from "@/app/components/ui/Button";
@@ -9,30 +10,43 @@ import {
   computeMyStrategyStats,
   computeOpponentStrategyStats,
   computeTagStats,
+  filterRecordsByPeriod,
+  type AnalysisPeriod,
 } from "@/app/lib/record-stats";
 import { getAllRecordDetails } from "@/app/lib/record-storage";
-import type { StrategyStat, TagStat } from "@/app/lib/types";
+import type { GameRecordDetail, StrategyStat, TagStat } from "@/app/lib/types";
 
 export function AnalysisView() {
-  const [stats, setStats] = useState<TagStat[]>([]);
-  const [myStrategyStats, setMyStrategyStats] = useState<StrategyStat[]>([]);
-  const [opponentStrategyStats, setOpponentStrategyStats] = useState<
-    StrategyStat[]
-  >([]);
-  const [totalRecords, setTotalRecords] = useState(0);
+  const [allRecords, setAllRecords] = useState<GameRecordDetail[]>([]);
+  const [period, setPeriod] = useState<AnalysisPeriod>("all");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     getAllRecordDetails()
       .then((records) => {
-        setTotalRecords(records.length);
-        setStats(computeTagStats(records));
-        setMyStrategyStats(computeMyStrategyStats(records));
-        setOpponentStrategyStats(computeOpponentStrategyStats(records));
+        setAllRecords(records);
         setReady(true);
       })
       .catch(() => setReady(true));
   }, []);
+
+  const filteredRecords = useMemo(
+    () => filterRecordsByPeriod(allRecords, period),
+    [allRecords, period]
+  );
+
+  const stats = useMemo(
+    () => computeTagStats(filteredRecords),
+    [filteredRecords]
+  );
+  const myStrategyStats = useMemo(
+    () => computeMyStrategyStats(filteredRecords),
+    [filteredRecords]
+  );
+  const opponentStrategyStats = useMemo(
+    () => computeOpponentStrategyStats(filteredRecords),
+    [filteredRecords]
+  );
 
   if (!ready) {
     return (
@@ -42,7 +56,7 @@ export function AnalysisView() {
     );
   }
 
-  if (totalRecords === 0) {
+  if (allRecords.length === 0) {
     return (
       <p className="text-center text-sm text-[var(--color-text-sub)]">
         記録がまだありません。対局を記録すると弱点分析が表示されます。
@@ -50,31 +64,48 @@ export function AnalysisView() {
     );
   }
 
-  const lowDataWarning = totalRecords < 10;
+  const periodEmpty = filteredRecords.length === 0;
+  const lowDataWarning = filteredRecords.length < 10;
 
   return (
     <>
-      <WeaknessRanking
-        stats={stats}
-        totalRecords={totalRecords}
-        lowDataWarning={lowDataWarning}
+      <AnalysisPeriodTabs
+        period={period}
+        onChange={setPeriod}
+        recordCount={filteredRecords.length}
       />
 
-      <div className="my-2 h-px bg-[var(--color-border)]" />
+      {periodEmpty ? (
+        <p className="rounded-lg bg-[var(--color-surface)] p-4 text-center text-sm text-[var(--color-text-sub)]">
+          {period === "month"
+            ? "直近1か月の対局記録がありません。"
+            : "表示できる記録がありません。"}
+        </p>
+      ) : (
+        <>
+          <WeaknessRanking
+            stats={stats}
+            totalRecords={filteredRecords.length}
+            lowDataWarning={lowDataWarning}
+          />
 
-      <StrategyRanking
-        title="自分の戦型（採用回数順）"
-        stats={myStrategyStats}
-        emptyMessage="戦型が記録された対局がありません。要約保存時に自分の戦型を入力してください。"
-      />
+          <div className="my-2 h-px bg-[var(--color-border)]" />
 
-      <div className="my-2 h-px bg-[var(--color-border)]" />
+          <StrategyRanking
+            title="自分の戦型（採用回数順）"
+            stats={myStrategyStats}
+            emptyMessage="この期間に戦型が記録された対局がありません。"
+          />
 
-      <StrategyRanking
-        title="相手の戦型（対局数順）"
-        stats={opponentStrategyStats}
-        emptyMessage="相手の戦型が記録された対局がありません。"
-      />
+          <div className="my-2 h-px bg-[var(--color-border)]" />
+
+          <StrategyRanking
+            title="相手の戦型（対局数順）"
+            stats={opponentStrategyStats}
+            emptyMessage="この期間に相手の戦型が記録された対局がありません。"
+          />
+        </>
+      )}
 
       <Link href="/study-menu" className="block">
         <Button fullWidth>学習メニューを見る</Button>
