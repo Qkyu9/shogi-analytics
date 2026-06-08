@@ -14,7 +14,7 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     myStrategy: "角換わり右玉",
     opponentRank: "会館初段",
     opponentStrategy: "角換わりからの矢倉囲い",
-    tags: ["攻めの手順選択"],
+    tags: ["中盤の読み（攻めるか受けるか）"],
     positionCount: 3,
     positions: [
       {

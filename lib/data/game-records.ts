@@ -10,6 +10,7 @@ import {
   bareMigiGyokuToGangi,
   isBareMigiGyokuStrategy,
 } from "@/app/lib/migi-gyoku-strategy";
+import { migrateTagsToCurrentLabels } from "@/app/lib/weakness-tags";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 function venueLabel(type: VenueType): string {
@@ -77,7 +78,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
     opponentRank: row.opponent_rank ?? "",
-    tags: row.tags ?? [],
+    tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: positions.length,
     positions,
     kifuText: row.kifu_text ?? undefined,
@@ -128,7 +129,7 @@ export async function listGameRecordSummaries(
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
     opponentRank: row.opponent_rank ?? "",
-    tags: row.tags ?? [],
+    tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: row.game_positions?.length ?? 0,
   }));
 }
