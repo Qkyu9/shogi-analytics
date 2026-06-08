@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
@@ -11,6 +11,7 @@ import {
   getWebKitRecorderMimeType,
   IOS_TIMESLICE_MS,
   isIOSOrWebKit,
+  LIVE_FIRST_TRANSCRIBE_SEC,
   LIVE_SEGMENT_MIN_BYTES,
   LIVE_TRANSCRIBE_INTERVAL_SEC,
   parseJsonResponse,
@@ -29,6 +30,10 @@ import {
   transcriptPreview,
   type CachedVoiceText,
 } from "@/app/lib/transcript-cache";
+import {
+  createLiveSpeechSession,
+  type LiveSpeechSession,
+} from "@/app/lib/live-speech-recognition";
 import { formatDuration } from "@/app/lib/utils";
 
 type RecorderState =
@@ -57,6 +62,7 @@ export function VoiceRecorder() {
   const [cached, setCached] = useState<CachedVoiceText | null>(null);
   const [showCacheOptions, setShowCacheOptions] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
   const [liveTranscribing, setLiveTranscribing] = useState(false);
   const [recordingSignal, setRecordingSignal] =
     useState<RecordingSignal>("checking");
@@ -70,8 +76,11 @@ export function VoiceRecorder() {
   const abortingRef = useRef(false);
   const autoStoppingRef = useRef(false);
   const liveTranscriptRef = useRef("");
-  const segmentChunkStartRef = useRef(0);
   const liveTranscribeBusyRef = useRef(false);
+  const lastCumulativeAttemptRef = useRef(0);
+  const recordingActiveRef = useRef(false);
+  const liveSpeechRef = useRef<LiveSpeechSession | null>(null);
+  const livePanelScrollRef = useRef<HTMLDivElement | null>(null);
 
   const persistLiveRawForRecovery = (text?: string) => {
     const raw = (text ?? liveTranscriptRef.current).trim();
@@ -80,18 +89,34 @@ export function VoiceRecorder() {
     setCached(loadTranscriptCache());
   };
 
-  const appendLiveTranscript = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const appended = liveTranscriptRef.current
-      ? `${liveTranscriptRef.current}\n${trimmed}`
-      : trimmed;
-    liveTranscriptRef.current = appended;
-    setLiveTranscript(appended);
-    persistLiveRawForRecovery(appended);
+  const scrollLivePanelToBottom = useCallback(() => {
+    const el = livePanelScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const setLiveTranscriptConfirmed = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      liveTranscriptRef.current = trimmed;
+      setLiveTranscript(trimmed);
+      setInterimTranscript("");
+      persistLiveRawForRecovery(trimmed);
+      setRecordingSignal("receiving");
+      requestAnimationFrame(scrollLivePanelToBottom);
+    },
+    [scrollLivePanelToBottom]
+  );
+
+  const stopLiveSpeech = () => {
+    liveSpeechRef.current?.stop();
+    liveSpeechRef.current = null;
+    recordingActiveRef.current = false;
+    setInterimTranscript("");
   };
 
   const releaseRecorder = () => {
+    stopLiveSpeech();
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -116,6 +141,7 @@ export function VoiceRecorder() {
   const abortRecording = (message: string) => {
     if (abortingRef.current) return;
     abortingRef.current = true;
+    stopLiveSpeech();
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -137,7 +163,6 @@ export function VoiceRecorder() {
     if (recorder) {
       recorder.onstop = () => {
         const chunksCopy = [...chunksRef.current];
-        const startIdx = segmentChunkStartRef.current;
         const mimeType = mimeTypeRef.current || "audio/mp4";
 
         stream?.getTracks().forEach((t) => t.stop());
@@ -146,15 +171,14 @@ export function VoiceRecorder() {
         chunksRef.current = [];
         abortingRef.current = false;
 
-        const unsent = chunksCopy.slice(startIdx);
-        if (unsent.length === 0) return;
+        if (chunksCopy.length === 0) return;
 
-        const blob = new Blob(unsent, { type: mimeType });
+        const blob = new Blob(chunksCopy, { type: mimeType });
         if (blob.size < LIVE_SEGMENT_MIN_BYTES) return;
 
         void transcribeChunk(blob)
           .then((text) => {
-            if (text) appendLiveTranscript(text);
+            if (text) setLiveTranscriptConfirmed(text);
           })
           .catch(() => {
             /* 復旧用の追記は失敗しても録音停止は優先済み */
@@ -218,10 +242,10 @@ export function VoiceRecorder() {
     }
 
     if (
-      secs >= LIVE_TRANSCRIBE_INTERVAL_SEC &&
+      secs >= LIVE_FIRST_TRANSCRIBE_SEC &&
       secs % LIVE_TRANSCRIBE_INTERVAL_SEC === 0
     ) {
-      void transcribeLiveSegment();
+      void transcribeLiveCumulative();
     }
   };
 
@@ -331,36 +355,45 @@ export function VoiceRecorder() {
     router.push("/records/new/preview");
   };
 
-  const transcribeLiveSegment = async (force = false) => {
+  const transcribeLiveCumulative = async () => {
     if (liveTranscribeBusyRef.current || abortingRef.current) return;
+    if (chunksRef.current.length === 0) return;
 
-    const startIdx = segmentChunkStartRef.current;
-    const segmentChunks = chunksRef.current.slice(startIdx);
-    if (segmentChunks.length === 0) return;
-
-    const blob = new Blob(segmentChunks, {
+    const blob = new Blob(chunksRef.current, {
       type: mimeTypeRef.current || "audio/mp4",
     });
-    if (!force && blob.size < LIVE_SEGMENT_MIN_BYTES) return;
+    if (blob.size < LIVE_SEGMENT_MIN_BYTES) return;
 
     liveTranscribeBusyRef.current = true;
     setLiveTranscribing(true);
-    segmentChunkStartRef.current = chunksRef.current.length;
 
     try {
       const text = await transcribeChunk(blob);
-      if (text) appendLiveTranscript(text);
+      if (text) setLiveTranscriptConfirmed(text);
     } catch {
-      segmentChunkStartRef.current = startIdx;
+      /* 録音中の部分音声は端末によって失敗することがある。次の周期で再試行 */
     } finally {
       liveTranscribeBusyRef.current = false;
       setLiveTranscribing(false);
     }
   };
 
-  const flushLiveSegment = async (force = false) => {
-    if (segmentChunkStartRef.current >= chunksRef.current.length) return;
-    await transcribeLiveSegment(force);
+  const scheduleLiveCumulativeTranscribe = () => {
+    if (!recordingActiveRef.current || abortingRef.current) return;
+    if (durationRef.current < LIVE_FIRST_TRANSCRIBE_SEC) return;
+    if (liveTranscribeBusyRef.current) return;
+
+    const bytes = totalChunkBytes(chunksRef.current);
+    if (bytes < LIVE_SEGMENT_MIN_BYTES) return;
+
+    const now = Date.now();
+    if (now - lastCumulativeAttemptRef.current < 4_000) return;
+    lastCumulativeAttemptRef.current = now;
+    void transcribeLiveCumulative();
+  };
+
+  const flushLiveTranscript = async () => {
+    await transcribeLiveCumulative();
     let retries = 0;
     while (liveTranscribeBusyRef.current && retries < 40) {
       await new Promise((r) => setTimeout(r, 250));
@@ -484,9 +517,10 @@ export function VoiceRecorder() {
     setRecordingSignal("checking");
     liveTranscriptRef.current = "";
     setLiveTranscript("");
+    setInterimTranscript("");
     setLiveTranscribing(false);
-    segmentChunkStartRef.current = 0;
     liveTranscribeBusyRef.current = false;
+    lastCumulativeAttemptRef.current = 0;
     releaseRecorder();
 
     if (typeof MediaRecorder === "undefined") {
@@ -517,6 +551,7 @@ export function VoiceRecorder() {
         if (event.data && event.data.size > 0) {
           chunksRef.current.push(event.data);
           setRecordingSignal("receiving");
+          scheduleLiveCumulativeTranscribe();
         }
       });
 
@@ -538,6 +573,31 @@ export function VoiceRecorder() {
       startMediaRecorder(recorder, webkit);
 
       mediaRecorderRef.current = recorder;
+      recordingActiveRef.current = true;
+      liveSpeechRef.current = createLiveSpeechSession(
+        (text, isInterim) => {
+          if (isInterim) {
+            setInterimTranscript(text);
+            setRecordingSignal("receiving");
+            requestAnimationFrame(scrollLivePanelToBottom);
+            return;
+          }
+          setInterimTranscript("");
+          if (
+            !liveTranscriptRef.current ||
+            text.length >= liveTranscriptRef.current.length
+          ) {
+            liveTranscriptRef.current = text;
+            setLiveTranscript(text);
+            persistLiveRawForRecovery(text);
+            setRecordingSignal("receiving");
+            requestAnimationFrame(scrollLivePanelToBottom);
+          }
+        },
+        () => recordingActiveRef.current
+      );
+      liveSpeechRef.current?.start();
+
       setState("recording");
       setDuration(0);
       durationRef.current = 0;
@@ -581,7 +641,8 @@ export function VoiceRecorder() {
       if (abortingRef.current) return;
 
       try {
-        await flushLiveSegment(true);
+        stopLiveSpeech();
+        await flushLiveTranscript();
         const blob = await assembleRecordingBlob(chunksRef.current, actualType);
         chunksRef.current = [];
         stream?.getTracks().forEach((t) => t.stop());
@@ -635,10 +696,44 @@ export function VoiceRecorder() {
 
   const hasCache = state === "idle" && cached && !isProcessing;
   const savedLiveRaw = cached?.liveRawTranscript?.trim();
-  const showLivePanel = state === "recording" || isProcessing;
+  const displayLiveText = liveTranscript || interimTranscript;
 
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8">
+      {state === "recording" && (
+        <section className="flex w-full max-w-sm min-h-[200px] max-h-[min(50vh,360px)] flex-col gap-2 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-4 shadow-md">
+          <p className="text-xs font-semibold text-[var(--color-primary)]">
+            文字起こし（話している間に表示されます）
+          </p>
+          <div
+            ref={livePanelScrollRef}
+            className="flex-1 overflow-y-auto"
+          >
+            {displayLiveText ? (
+              <p
+                className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                  interimTranscript && !liveTranscript
+                    ? "text-[var(--color-text-sub)]"
+                    : "text-[var(--color-text)]"
+                }`}
+              >
+                {displayLiveText}
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--color-text-sub)]">
+                話し始めると、ここに文字が表示されます…
+              </p>
+            )}
+            {liveTranscribing && (
+              <p className="mt-2 text-xs text-[var(--color-primary)]">
+                高精度の文字起こしを更新中…
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {state !== "recording" && (
       <div className="w-full max-w-sm rounded-lg bg-[var(--color-bg-sub)] p-4">
         <p className="mb-3 text-center text-sm font-bold text-[var(--color-text)]">
           この順番で話すと精度が上がります
@@ -667,6 +762,7 @@ export function VoiceRecorder() {
           ))}
         </ol>
       </div>
+      )}
 
       {hasCache && (
         <p className="text-center text-xs font-medium text-[var(--color-primary)]">
@@ -674,10 +770,10 @@ export function VoiceRecorder() {
         </p>
       )}
 
-      {showLivePanel && (
-        <section className="flex w-full max-w-sm min-h-[160px] max-h-[min(45vh,300px)] flex-col gap-2 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-4 shadow-sm">
+      {isProcessing && (
+        <section className="flex w-full max-w-sm min-h-[120px] max-h-[min(40vh,240px)] flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <p className="text-xs font-semibold text-[var(--color-text-sub)]">
-            文字起こし（話すとここに表示されます）
+            文字起こし
           </p>
           <div className="flex-1 overflow-y-auto">
             {liveTranscript ? (
@@ -686,14 +782,7 @@ export function VoiceRecorder() {
               </p>
             ) : (
               <p className="text-sm text-[var(--color-text-sub)]">
-                {state === "recording"
-                  ? "音声を聞き取っています…"
-                  : "最終の文字起こしを処理しています…"}
-              </p>
-            )}
-            {liveTranscribing && (
-              <p className="mt-2 text-xs text-[var(--color-primary)]">
-                続きを文字起こし中…
+                最終の文字起こしを処理しています…
               </p>
             )}
           </div>
@@ -769,7 +858,7 @@ export function VoiceRecorder() {
 
       {state === "idle" && !error && (
         <p className="text-center text-xs text-[var(--color-text-sub)]">
-          録音中は10秒ごとに文字が表示されます。停止後に将棋用語補正→要約へ進みます。
+          録音中は話した内容がリアルタイムで表示されます。停止後に将棋用語補正→要約へ進みます。
         </p>
       )}
 

@@ -11,11 +11,14 @@ export const RECORDING_HEALTH_CHECK_SEC = 3;
 /** このサイズを超えたら録音中に自動停止して処理へ（最後まで話してから失敗させない） */
 export const RECORDING_AUTO_STOP_BYTES = CHUNK_THRESHOLD_BYTES;
 
-/** 録音中にこの秒数ごとに文字起こしして画面に追記する */
-export const LIVE_TRANSCRIBE_INTERVAL_SEC = 10;
+/** 最初のライブ文字起こしを試みる秒数 */
+export const LIVE_FIRST_TRANSCRIBE_SEC = 5;
+
+/** 録音中にこの秒数ごとに累積音声を文字起こしして画面を更新する */
+export const LIVE_TRANSCRIBE_INTERVAL_SEC = 5;
 
 /** ライブ文字起こしに送る最小音声サイズ（バイト） */
-export const LIVE_SEGMENT_MIN_BYTES = 8_000;
+export const LIVE_SEGMENT_MIN_BYTES = 4_000;
 
 export function isStandalonePWA(): boolean {
   if (typeof window === "undefined") return false;
