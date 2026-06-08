@@ -94,15 +94,15 @@ export function RecordPreviewForm({
       if (mode === "edit" && recordId) {
         await updateRecord(recordId, payload);
         setSaved(true);
-        router.push(`/records/${recordId}`);
+        router.push("/records");
         return;
       }
 
-      const id = await saveRecord(payload);
+      await saveRecord(payload);
       clearDraft();
       clearTranscriptCache();
       setSaved(true);
-      router.push(`/records/${id}`);
+      router.push("/records");
     } catch {
       setSaving(false);
     }
