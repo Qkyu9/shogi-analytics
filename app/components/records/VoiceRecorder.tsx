@@ -279,12 +279,34 @@ export function VoiceRecorder() {
 
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8">
-      <p className="text-center text-sm leading-relaxed text-[var(--color-text-sub)]">
-        対局直後に振り返りを話してください。
-        <br />
-        局面の状況・相手の狙い・自分が選んだ手・正着とその理由まで、
-        詳しく話すほど要約の精度が上がります。
-      </p>
+      <div className="w-full max-w-sm rounded-lg bg-[var(--color-bg-sub)] p-4">
+        <p className="mb-3 text-center text-sm font-bold text-[var(--color-text)]">
+          この順番で話すと精度が上がります
+        </p>
+        <ol className="space-y-2 text-sm">
+          {[
+            { label: "対局形式", example: "棋の音、将棋ウォーズ10切れ　など" },
+            { label: "戦型", example: "例）私は左美濃、相手は持久戦矢倉" },
+            { label: "相手の段位・級位", example: "例）棋の音の初段" },
+            { label: "問題局面までの流れ", example: "大まかな経緯" },
+            { label: "局面での判断とその理由", example: "" },
+            { label: "敗因・疑問手だった理由", example: "" },
+            { label: "最善手・改善手とその理由", example: "" },
+          ].map((item, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="min-w-[1.5rem] font-bold text-[var(--color-primary)]">
+                {i + 1}.
+              </span>
+              <span>
+                <span className="font-medium text-[var(--color-text)]">{item.label}</span>
+                {item.example && (
+                  <span className="block text-xs text-[var(--color-text-sub)]">{item.example}</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       {hasCache && (
         <p className="text-center text-xs font-medium text-[var(--color-primary)]">

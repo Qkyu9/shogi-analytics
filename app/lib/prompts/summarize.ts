@@ -49,6 +49,7 @@ export const SUMMARIZE_USER_PROMPT = (
   transcript: string,
   nowJst: string
 ) => `以下は対局直後の音声振り返りの文字起こしです。構造化要約に変換してください。
+話者は「対局形式 → 戦型 → 相手の段位・級位 → 問題局面までの流れ → 局面での判断と理由 → 敗因・疑問手の理由 → 最善手・改善手とその理由」の順で話しています。
 ドメイン知識の「悪い要約例」に近い書き方は避け、「良い要約例」の論点を反映してください。
 
 【現在日時（日本時間）】
@@ -64,7 +65,7 @@ ${transcript}
   "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（右玉・角換わりなど）",
-  "opponentStrategy": "相手の戦型",
+  "opponentStrategy": "相手の戦型と段位・級位（例: 持久戦矢倉（初段））",
   "positions": [
     {
       "sceneDescription": "局面の状況説明（2〜4文、文脈を残す）",
