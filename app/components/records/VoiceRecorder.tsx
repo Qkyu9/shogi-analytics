@@ -261,9 +261,10 @@ export function VoiceRecorder() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
 
-      const blob = new Blob(chunksRef.current, {
-        type: mimeTypeRef.current,
-      });
+      const actualType = mimeTypeRef.current;
+      const blob = actualType
+        ? new Blob(chunksRef.current, { type: actualType })
+        : new Blob(chunksRef.current);
 
       try {
         await processAudio(blob);
