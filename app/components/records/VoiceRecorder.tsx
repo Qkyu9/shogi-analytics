@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
+import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import {
   assembleRecordingBlob,
   audioBlobExtension,
@@ -55,7 +56,6 @@ export function VoiceRecorder() {
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState<CachedVoiceText | null>(null);
   const [showCacheOptions, setShowCacheOptions] = useState(false);
-  const [showRawTranscript, setShowRawTranscript] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [liveTranscribing, setLiveTranscribing] = useState(false);
   const [recordingSignal, setRecordingSignal] =
@@ -127,7 +127,7 @@ export function VoiceRecorder() {
 
     setError(
       liveTranscriptRef.current.trim()
-        ? `${message}\n\n途中までの文字起こしは下の「音声入力の生テキスト」から確認できます。`
+        ? `${message}\n\n途中までの文字起こしは下の「元の入力テキスト」から確認できます。`
         : message
     );
     setState("idle");
@@ -316,10 +316,17 @@ export function VoiceRecorder() {
     });
     setCached(loadTranscriptCache());
 
+    const sourceInputText =
+      rawTranscript?.trim() || liveTranscriptRef.current.trim() || undefined;
+
     saveDraft({
-      draft: summarizeData.draft,
+      draft: {
+        ...summarizeData.draft,
+        sourceInputText,
+      },
       transcript: finalTranscript,
       rawTranscript,
+      sourceInputText,
     });
     router.push("/records/new/preview");
   };
@@ -434,7 +441,7 @@ export function VoiceRecorder() {
       const message =
         err instanceof Error ? err.message : "処理中にエラーが発生しました。";
       setError(
-        `${message}\n\n保存済みの生テキストは「音声入力の生テキスト」から再度お試しできます。`
+        `${message}\n\n保存済みのテキストは「元の入力テキスト」から再度お試しできます。`
       );
       setState("idle");
       setProcessingStep(null);
@@ -469,7 +476,6 @@ export function VoiceRecorder() {
     clearTranscriptCache();
     setCached(null);
     setShowCacheOptions(false);
-    setShowRawTranscript(false);
   };
 
   const startRecording = async () => {
@@ -591,7 +597,7 @@ export function VoiceRecorder() {
         persistLiveRawForRecovery();
         setError(
           liveTranscriptRef.current.trim()
-            ? `${message}\n\n途中までの文字起こしは下の「音声入力の生テキスト」から確認できます。`
+            ? `${message}\n\n途中までの文字起こしは下の「元の入力テキスト」から確認できます。`
             : message
         );
         setState("idle");
@@ -768,42 +774,19 @@ export function VoiceRecorder() {
       )}
 
       {state === "idle" && savedLiveRaw && !isProcessing && (
-        <section className="w-full max-w-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3">
-          <button
-            type="button"
-            onClick={() => setShowRawTranscript((v) => !v)}
-            className="flex w-full items-center justify-between text-left text-sm font-semibold text-[var(--color-text)]"
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          <SourceInputCollapsible text={savedLiveRaw} />
+          <p className="text-center text-xs text-[var(--color-text-sub)]">
+            {formatCacheDate(cached!.savedAt)} に保存
+          </p>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={handleUseLiveRawTranscript}
           >
-            <span>音声入力の生テキスト</span>
-            <span className="text-xs font-normal text-[var(--color-text-sub)]">
-              {showRawTranscript ? "閉じる" : "開く"}
-            </span>
-          </button>
-          {!showRawTranscript && (
-            <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-              {formatCacheDate(cached!.savedAt)} ・ {transcriptPreview(savedLiveRaw, 40)}
-            </p>
-          )}
-          {showRawTranscript && (
-            <div className="mt-3 flex flex-col gap-3">
-              <p className="text-xs text-[var(--color-text-sub)]">
-                将棋用語の補正前の文字起こしです。エラー時の復旧やメモへの貼り付けに使えます。
-              </p>
-              <div className="max-h-[min(50vh,320px)] overflow-y-auto rounded-md bg-[var(--color-surface)] p-3">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
-                  {savedLiveRaw}
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={handleUseLiveRawTranscript}
-              >
-                このテキストから要約を作る
-              </Button>
-            </div>
-          )}
-        </section>
+            このテキストから要約を作る
+          </Button>
+        </div>
       )}
 
       {hasCache && (

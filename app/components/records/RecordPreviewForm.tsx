@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearDraft } from "@/app/lib/draft-storage";
 import { clearTranscriptCache } from "@/app/lib/transcript-cache";
-import { saveRecord } from "@/app/lib/record-storage";
+import { saveRecord, updateRecord } from "@/app/lib/record-storage";
 import { Button } from "@/app/components/ui/Button";
 import { KifuPasteArea } from "./KifuPasteArea";
+import { SourceInputCollapsible } from "./SourceInputCollapsible";
 import { TagInput } from "./TagInput";
 import type { GameRecordDraft, GamePosition } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
@@ -35,21 +36,26 @@ const FIELD_ROWS: Partial<Record<keyof GamePosition, number>> = {
 };
 
 export function RecordPreviewForm({
+  mode = "create",
+  recordId,
   initialData,
-  transcript,
-  rawTranscript,
+  sourceInputText,
   onDiscard,
 }: {
+  mode?: "create" | "edit";
+  recordId?: string;
   initialData: GameRecordDraft;
-  transcript?: string;
-  rawTranscript?: string;
+  sourceInputText?: string;
   onDiscard?: () => void;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<GameRecordDraft>(initialData);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(false);
+  const resolvedSourceInput =
+    sourceInputText?.trim() ||
+    draft.sourceInputText?.trim() ||
+    "";
 
   const updatePosition = (index: number, field: keyof GamePosition, value: string) => {
     setDraft((d) => ({
@@ -77,7 +83,19 @@ export function RecordPreviewForm({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const id = await saveRecord(draft);
+      const payload: GameRecordDraft = {
+        ...draft,
+        sourceInputText: resolvedSourceInput || draft.sourceInputText,
+      };
+
+      if (mode === "edit" && recordId) {
+        await updateRecord(recordId, payload);
+        setSaved(true);
+        router.push(`/records/${recordId}`);
+        return;
+      }
+
+      const id = await saveRecord(payload);
       clearDraft();
       clearTranscriptCache();
       setSaved(true);
@@ -95,40 +113,14 @@ export function RecordPreviewForm({
         </div>
       )}
 
-      {transcript && (
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3">
-          <button
-            type="button"
-            onClick={() => setShowTranscript((v) => !v)}
-            className="flex w-full items-center justify-between text-sm font-semibold"
-          >
-            補正後の文字起こし（参考）
-            <span className="text-xs text-[var(--color-text-sub)]">
-              {showTranscript ? "閉じる" : "開く"}
-            </span>
-          </button>
-          {showTranscript && (
-            <div className="mt-2 flex flex-col gap-3">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {transcript}
-              </p>
-              {rawTranscript && rawTranscript !== transcript && (
-                <div className="border-t border-[var(--color-border)] pt-2">
-                  <p className="text-xs font-semibold text-[var(--color-text-sub)]">
-                    補正前（STT生データ）
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-sub)] whitespace-pre-wrap">
-                    {rawTranscript}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+      {resolvedSourceInput && (
+        <SourceInputCollapsible text={resolvedSourceInput} />
       )}
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
-        AIが要約した内容です。話した詳細と違う場合は、そのまま編集してください。
+        {mode === "edit"
+          ? "保存済みの記録を編集できます。タグや要約の追記・修正後に保存してください。"
+          : "AIが要約した内容です。話した詳細と違う場合は、そのまま編集して保存できます。あとから記録詳細画面でも編集できます。"}
       </p>
 
       <section className="flex flex-col gap-3">
@@ -265,15 +257,20 @@ export function RecordPreviewForm({
         <Button
           variant="secondary"
           onClick={() => {
-            clearDraft();
+            if (mode === "create") clearDraft();
             if (onDiscard) onDiscard();
+            else if (mode === "edit" && recordId) router.push(`/records/${recordId}`);
             else router.push("/");
           }}
         >
-          破棄
+          {mode === "edit" ? "キャンセル" : "破棄"}
         </Button>
         <Button fullWidth onClick={handleSave} disabled={saving}>
-          {saving ? "保存中..." : "保存する"}
+          {saving
+            ? "保存中..."
+            : mode === "edit"
+              ? "変更を保存"
+              : "保存する"}
         </Button>
       </div>
     </div>

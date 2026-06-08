@@ -42,6 +42,7 @@ type DbRecord = {
   opponent_strategy: string;
   tags: string[];
   kifu_text: string | null;
+  source_input_text: string | null;
   game_positions: Array<{
     sort_order: number;
     scene_description: string;
@@ -74,6 +75,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
     positionCount: positions.length,
     positions,
     kifuText: row.kifu_text ?? undefined,
+    sourceInputText: row.source_input_text ?? undefined,
   };
 }
 
@@ -86,6 +88,7 @@ const recordSelect = `
   opponent_strategy,
   tags,
   kifu_text,
+  source_input_text,
   game_positions (
     sort_order,
     scene_description,
@@ -157,6 +160,7 @@ export async function insertGameRecord(
       opponent_strategy: draft.opponentStrategy.trim(),
       tags: draft.tags,
       kifu_text: draft.kifuText?.trim() || null,
+      source_input_text: draft.sourceInputText?.trim() || null,
     })
     .select("id")
     .single();
@@ -206,6 +210,54 @@ function recordFingerprint(
     record.myStrategy.trim(),
     record.opponentStrategy.trim(),
   ].join("|");
+}
+
+export async function updateGameRecord(
+  userId: string,
+  recordId: string,
+  draft: GameRecordDraft
+): Promise<GameRecordDetail> {
+  const supabase = createServiceRoleClient();
+  const positions = normalizePositions(draft.positions);
+
+  const { error: recordError } = await supabase
+    .from("game_records")
+    .update({
+      played_at: draft.playedAt,
+      venue_type: draft.venueType,
+      result: draft.result,
+      my_strategy: draft.myStrategy.trim(),
+      opponent_strategy: draft.opponentStrategy.trim(),
+      tags: draft.tags,
+      kifu_text: draft.kifuText?.trim() || null,
+      source_input_text: draft.sourceInputText?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("id", recordId);
+
+  if (recordError) throw recordError;
+
+  const { error: deleteError } = await supabase
+    .from("game_positions")
+    .delete()
+    .eq("game_record_id", recordId);
+
+  if (deleteError) throw deleteError;
+
+  if (positions.length > 0) {
+    const { error: posError } = await supabase.from("game_positions").insert(
+      positions.map((p) => ({
+        game_record_id: recordId,
+        ...p,
+      }))
+    );
+    if (posError) throw posError;
+  }
+
+  const detail = await getGameRecordDetail(userId, recordId);
+  if (!detail) throw new Error("更新した記録の取得に失敗しました");
+  return detail;
 }
 
 export async function deleteGameRecord(

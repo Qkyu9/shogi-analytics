@@ -27,9 +27,10 @@
 ### 1-2. SQL を実行（テーブル作成）
 
 1. 左メニュー **SQL Editor** → **New query**
-2. 次の2ファイルの内容を **この順番で** 貼り付けて **Run**:
+2. 次の3ファイルの内容を **この順番で** 貼り付けて **Run**:
    - `supabase/migrations/20250203_init_users.sql`
    - `supabase/migrations/20250608_game_records.sql`
+   - `supabase/migrations/20250608_source_input_text.sql`（既存DBへの追加分。新規作成時も実行して問題ありません）
 3. 左メニュー **Table Editor** で `users` と `game_records` ができているか確認
 
 ### 1-3. API キーを控える

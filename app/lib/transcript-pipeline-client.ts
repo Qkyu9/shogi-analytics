@@ -74,9 +74,13 @@ export async function runTranscriptPipeline(
   });
 
   saveDraft({
-    draft: summarizeData.draft,
+    draft: {
+      ...summarizeData.draft,
+      sourceInputText: trimmed,
+    },
     transcript: finalTranscript,
     rawTranscript: raw,
+    sourceInputText: trimmed,
   });
 
   return {

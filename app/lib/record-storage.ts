@@ -93,6 +93,20 @@ export async function getAllRecordSummaries(): Promise<GameRecordSummary[]> {
   return records;
 }
 
+export async function updateRecord(
+  id: string,
+  draft: GameRecordDraft
+): Promise<GameRecordDetail> {
+  const { record } = await apiFetch<{ record: GameRecordDetail }>(
+    `/api/records/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(draft),
+    }
+  );
+  return record;
+}
+
 export async function deleteRecord(id: string): Promise<void> {
   await apiFetch<{ ok: boolean }>(`/api/records/${id}`, {
     method: "DELETE",

@@ -6,6 +6,8 @@ export type StoredDraft = {
   draft: GameRecordDraft;
   transcript?: string;
   rawTranscript?: string;
+  /** 補正・要約前の元入力（音声STT / 貼り付けテキスト） */
+  sourceInputText?: string;
 };
 
 export function saveDraft(data: StoredDraft): void {

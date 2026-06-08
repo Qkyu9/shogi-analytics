@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
 import { deleteRecord, getRecordDetail } from "@/app/lib/record-storage";
@@ -72,6 +73,10 @@ export function RecordDetailView({ id }: { id: string }) {
         </div>
       </section>
 
+      {record.sourceInputText && (
+        <SourceInputCollapsible text={record.sourceInputText} />
+      )}
+
       {record.positions.map((pos, index) => (
         <section
           key={pos.sortOrder}
@@ -109,6 +114,10 @@ export function RecordDetailView({ id }: { id: string }) {
           </pre>
         </section>
       )}
+
+      <Link href={`/records/${record.id}/edit`} className="block">
+        <Button fullWidth>この記録を編集</Button>
+      </Link>
 
       <Link
         href="/records/new"

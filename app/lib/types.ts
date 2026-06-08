@@ -22,6 +22,8 @@ export type GameRecordDraft = {
   positions: GamePosition[];
   tags: string[];
   kifuText?: string;
+  /** 音声STTまたは外部貼り付けの元テキスト（補正・要約前） */
+  sourceInputText?: string;
 };
 
 export type GameRecordSummary = {
@@ -39,6 +41,7 @@ export type GameRecordSummary = {
 export type GameRecordDetail = GameRecordSummary & {
   positions: (GamePosition & { sortOrder: number })[];
   kifuText?: string;
+  sourceInputText?: string;
 };
 
 export type TagStat = {
