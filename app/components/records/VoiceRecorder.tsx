@@ -143,8 +143,11 @@ export function VoiceRecorder() {
     setState("transcribing");
     setProcessingStep("transcribing");
 
+    // SafariはFormData.appendにextensionなしのファイル名を渡すと
+    // "The string did not match the expected pattern" を投げるため拡張子を付ける
+    const ext = blob.type.includes("webm") ? "webm" : "m4a";
     const transcribeForm = new FormData();
-    transcribeForm.append("audio", blob, "recording");
+    transcribeForm.append("audio", blob, `recording.${ext}`);
 
     const transcribeRes = await fetch("/api/transcribe", {
       method: "POST",
@@ -230,8 +233,8 @@ export function VoiceRecorder() {
       } catch {
         recorder = new MediaRecorder(stream);
       }
-      // recorder.mimeType で実際に使われる形式を取得（iOSは audio/mp4 など）
-      mimeTypeRef.current = recorder.mimeType || mimeType || "";
+      // recorder.mimeType で実際に使われる形式を取得。空の場合はiOSのデフォルト audio/mp4 を使う
+      mimeTypeRef.current = recorder.mimeType || mimeType || "audio/mp4";
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
@@ -273,10 +276,9 @@ export function VoiceRecorder() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
 
-      const actualType = mimeTypeRef.current;
-      const blob = actualType
-        ? new Blob(chunksRef.current, { type: actualType })
-        : new Blob(chunksRef.current);
+      // iOSフォールバックとして audio/mp4 を使い、常に type を持つBlobを作る
+      const actualType = mimeTypeRef.current || "audio/mp4";
+      const blob = new Blob(chunksRef.current, { type: actualType });
 
       try {
         await processAudio(blob);
