@@ -183,12 +183,56 @@ export async function insertGameRecord(
   return detail;
 }
 
+function recordFingerprint(
+  record: Pick<
+    GameRecordDetail,
+    "playedAt" | "venueType" | "result" | "myStrategy" | "opponentStrategy"
+  >
+): string {
+  const played = new Date(record.playedAt);
+  const jstKey = played.toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return [
+    jstKey,
+    record.venueType,
+    record.result,
+    record.myStrategy.trim(),
+    record.opponentStrategy.trim(),
+  ].join("|");
+}
+
 export async function migrateGameRecords(
   userId: string,
   records: GameRecordDetail[]
 ): Promise<number> {
+  const existing = await listGameRecordSummaries(userId);
+  const existingKeys = new Set<string>();
+
+  for (const summary of existing) {
+    existingKeys.add(
+      recordFingerprint({
+        playedAt: summary.playedAt,
+        venueType: summary.venueType,
+        result: summary.result,
+        myStrategy: summary.myStrategy,
+        opponentStrategy: summary.opponentStrategy,
+      })
+    );
+  }
+
   let imported = 0;
   for (const record of records) {
+    const key = recordFingerprint(record);
+    if (existingKeys.has(key)) continue;
+    existingKeys.add(key);
+
     const draft: GameRecordDraft = {
       playedAt: record.playedAt,
       venueType: record.venueType,

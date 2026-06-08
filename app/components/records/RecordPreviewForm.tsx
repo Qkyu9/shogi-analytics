@@ -9,6 +9,7 @@ import { KifuPasteArea } from "./KifuPasteArea";
 import { TagInput } from "./TagInput";
 import type { GameRecordDraft, GamePosition } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
+import { fromDatetimeLocalJst, toDatetimeLocalJst } from "@/app/lib/utils";
 import { mockTagSuggestions } from "@/app/lib/mock-data";
 
 const emptyPosition = (): GamePosition => ({
@@ -132,11 +133,11 @@ export function RecordPreviewForm({
         <label className="text-sm font-semibold">対局日時</label>
         <input
           type="datetime-local"
-          value={draft.playedAt.slice(0, 16)}
+          value={toDatetimeLocalJst(draft.playedAt)}
           onChange={(e) =>
             setDraft((d) => ({
               ...d,
-              playedAt: new Date(e.target.value).toISOString(),
+              playedAt: fromDatetimeLocalJst(e.target.value),
             }))
           }
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
