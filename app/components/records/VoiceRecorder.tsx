@@ -216,7 +216,14 @@ export function VoiceRecorder() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      // 前の録音セッションの残留状態をクリア
+      mediaRecorderRef.current = null;
+      chunksRef.current = [];
+
       const mimeType = pickMimeType();
+      // SafariはmimeType指定不要 → timeslice指定も不安定（2回目以降でエラー）
+      const isSafariLike = mimeType === "";
+
       let recorder: MediaRecorder;
       try {
         recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -226,12 +233,17 @@ export function VoiceRecorder() {
       // recorder.mimeType で実際に使われる形式を取得（iOSは audio/mp4 など）
       mimeTypeRef.current = recorder.mimeType || mimeType || "";
 
-      chunksRef.current = [];
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
 
-      recorder.start(1000);
+      // iOS/Safariではtimeslice指定が2回目以降で "The string did not match the expected pattern"
+      // を引き起こすため、引数なしで開始する
+      try {
+        recorder.start(isSafariLike ? undefined : 1000);
+      } catch {
+        recorder.start();
+      }
       mediaRecorderRef.current = recorder;
       setState("recording");
       setDuration(0);
