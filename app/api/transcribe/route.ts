@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60; // Vercel サーバーレス関数のタイムアウトを60秒に延長
+
 const MAX_BYTES = 25 * 1024 * 1024; // 25MB（OpenAI上限に合わせる）
 
 const TRANSCRIBE_MODELS = [
@@ -62,11 +64,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ext = audio.type.includes("mp4")
+    // type が空の場合（iOS Safari）は m4a をデフォルトにする
+    const ext = audio.type.includes("mp4") || audio.type === ""
       ? "m4a"
       : audio.type.includes("webm")
         ? "webm"
-        : "audio";
+        : audio.type.includes("ogg")
+          ? "ogg"
+          : "m4a";
 
     let lastError = "";
     for (const model of TRANSCRIBE_MODELS) {
