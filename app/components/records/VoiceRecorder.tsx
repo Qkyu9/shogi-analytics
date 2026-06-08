@@ -17,6 +17,9 @@ import {
   parseJsonResponse,
   RECORDING_AUTO_STOP_BYTES,
   RECORDING_HEALTH_CHECK_SEC,
+  RECORDING_MAX_DURATION_SEC,
+  RECORDING_WARN_DURATION_SEC,
+  CHUNK_THRESHOLD_BYTES,
   totalChunkBytes,
 } from "@/app/lib/ios-audio";
 import { saveDraft } from "@/app/lib/draft-storage";
@@ -233,12 +236,19 @@ export function VoiceRecorder() {
       return;
     }
 
-    if (bytes >= RECORDING_AUTO_STOP_BYTES) {
+    if (secs >= RECORDING_MAX_DURATION_SEC) {
       autoStoppingRef.current = true;
       setRecordingSignal("warn-limit");
       stopRecording();
-    } else if (bytes >= RECORDING_AUTO_STOP_BYTES * 0.75) {
+    } else if (
+      bytes >= RECORDING_AUTO_STOP_BYTES ||
+      secs >= RECORDING_WARN_DURATION_SEC
+    ) {
       setRecordingSignal("warn-limit");
+      if (bytes >= RECORDING_AUTO_STOP_BYTES) {
+        autoStoppingRef.current = true;
+        stopRecording();
+      }
     }
 
     if (
@@ -363,6 +373,8 @@ export function VoiceRecorder() {
       type: mimeTypeRef.current || "audio/mp4",
     });
     if (blob.size < LIVE_SEGMENT_MIN_BYTES) return;
+    // 長い録音はライブ送信用サイズ超過を避け、停止後に分割送信する
+    if (blob.size > CHUNK_THRESHOLD_BYTES) return;
 
     liveTranscribeBusyRef.current = true;
     setLiveTranscribing(true);
@@ -823,7 +835,7 @@ export function VoiceRecorder() {
             {recordingSignal === "receiving"
               ? "音声を受信中"
               : recordingSignal === "warn-limit"
-                ? "録音が長くなっています。そろそろ停止してください"
+                ? "録音が長くなっています（目安6分）。そろそろ停止してください"
                 : "マイクを確認しています…"}
           </p>
         </div>

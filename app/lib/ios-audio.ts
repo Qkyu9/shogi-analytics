@@ -1,5 +1,15 @@
-/** Vercel のリクエスト上限（4.5MB）に余裕を持たせたクライアント側しきい値 */
+/** 1回のアップロード上限（Vercel 4.5MB 制限に余裕を持たせたしきい値） */
 export const CHUNK_THRESHOLD_BYTES = 3.2 * 1024 * 1024;
+
+/** 録音データがこのサイズを超えたら自動停止（iPhone m4a で約6〜8分想定） */
+export const RECORDING_AUTO_STOP_BYTES = 9 * 1024 * 1024;
+
+/** 録音の目安上限（秒）。6分程度を想定し、7分で自動停止 */
+export const RECORDING_MAX_DURATION_SEC = 7 * 60;
+
+/** この秒数を超えたら「そろそろ停止」警告 */
+export const RECORDING_WARN_DURATION_SEC = 6 * 60;
+
 export const CHUNK_SECONDS = 45;
 
 /** iPhone の Chrome/Firefox も WebKit のため、UA だけでは Safari と判定できない */
@@ -7,9 +17,6 @@ export const IOS_TIMESLICE_MS = 1000;
 
 /** この秒数経過してもデータが0バイトなら録音中にエラー表示 */
 export const RECORDING_HEALTH_CHECK_SEC = 3;
-
-/** このサイズを超えたら録音中に自動停止して処理へ（最後まで話してから失敗させない） */
-export const RECORDING_AUTO_STOP_BYTES = CHUNK_THRESHOLD_BYTES;
 
 /** 最初のライブ文字起こしを試みる秒数 */
 export const LIVE_FIRST_TRANSCRIBE_SEC = 5;
@@ -98,7 +105,7 @@ export async function parseJsonResponse<T extends { error?: string }>(
   } catch {
     if (res.status === 413) {
       throw new Error(
-        "音声データが大きすぎて送信できませんでした。2分ほどに区切って録音してください。"
+        "音声データが大きすぎて送信できませんでした。6分ほどに区切って録音してください。"
       );
     }
     throw new Error(
@@ -208,7 +215,7 @@ export async function buildUploadChunks(blob: Blob): Promise<Blob[]> {
   }
   if (blob.size > 4.5 * 1024 * 1024) {
     throw new Error(
-      "録音が長すぎて送信できません。2分ほどに区切って録音してください。"
+      "録音が長すぎて送信できません。6分ほどに区切って録音してください。"
     );
   }
   return [blob];
