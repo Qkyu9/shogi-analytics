@@ -220,12 +220,11 @@ export function VoiceRecorder() {
       let recorder: MediaRecorder;
       try {
         recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-        mimeTypeRef.current = mimeType || "audio/webm";
       } catch {
-        // iPhone Safari など mimeType 指定で失敗する場合はデフォルトで再試行
         recorder = new MediaRecorder(stream);
-        mimeTypeRef.current = recorder.mimeType || "audio/mp4";
       }
+      // recorder.mimeType で実際に使われる形式を取得（iOSは audio/mp4 など）
+      mimeTypeRef.current = recorder.mimeType || mimeType || "";
 
       chunksRef.current = [];
       recorder.ondataavailable = (event) => {

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>将棋 Analytics — パターンB プレビュー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #dde3ec;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+h1 { font-size: 18px; color: #1e293b; font-weight: 700; }
+.note { font-size: 13px; color: #64748b; text-align: center; }
+
+/* ===== スマホ枠 ===== */
+.phone-wrap {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.phone-frame {
+  width: 320px;
+  background: #f4f6f8;
+  border-radius: 32px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
+  position: relative;
+}
+.screen-label {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+/* ===== カラー変数（パターンB） ===== */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-sub: #94a3b8;
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --tag-bg: #eff6ff;
+  --tag-text: #2563eb;
+}
+
+/* ===== ヘッダー ===== */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.header-sub { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+.header-bell { font-size: 20px; }
+
+/* ===== セクションラベル ===== */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 14px 16px 6px;
+}
+
+/* ===== カード ===== */
+.card {
+  margin: 0 16px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.card-body { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
+.tag {
+  display: inline-block;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 4px 2px 0;
+}
+
+/* ===== リストアイテム ===== */
+.list-item {
+  margin: 0 16px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.list-left { display: flex; align-items: center; gap: 10px; }
+.list-badge {
+  width: 38px; height: 38px;
+  background: var(--primary-light);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.list-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.list-sub { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+.result { font-size: 12px; font-weight: 700; }
+.win { color: var(--success); }
+.lose { color: var(--danger); }
+
+/* ===== ガイドボックス ===== */
+.guide-box {
+  margin: 0 16px 10px;
+  background: #f8faff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  padding: 14px;
+}
+.guide-title {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  text-align: center; margin-bottom: 10px;
+}
+.guide-row {
+  display: flex; gap: 6px; align-items: baseline;
+  font-size: 11px; line-height: 1.9;
+}
+.step-num { color: var(--primary); font-weight: 700; min-width: 18px; }
+.step-label { color: var(--text); font-weight: 500; }
+.step-eg { color: var(--text-sub); font-size: 10px; margin-left: 4px; }
+
+/* ===== マイクボタン ===== */
+.mic-wrap { display: flex; justify-content: center; padding: 8px 0 4px; }
+.mic-btn {
+  width: 60px; height: 60px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+  border: none; cursor: pointer;
+}
+
+/* ===== ボトムナビ ===== */
+.nav-bar {
+  margin-top: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding: 6px 0 10px;
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-sub);
+}
+.nav-item.active { color: var(--primary); }
+.nav-icon-svg { width: 20px; height: 20px; }
+.nav-photo {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+.nav-photo.active { outline: 1.5px solid var(--primary); }
+
+/* 中央マイクボタン（ナビ内） */
+.nav-mic-btn {
+  width: 44px; height: 44px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -16px;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+}
+.nav-mic-btn svg { width: 22px; height: 22px; fill: white; }
+
+/* ===== 統計カード ===== */
+.stats-row {
+  display: flex; gap: 8px; margin: 0 16px 10px;
+}
+.stat-card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.stat-num { font-size: 22px; font-weight: 700; color: var(--primary); }
+.stat-label { font-size: 10px; color: var(--text-sub); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>パターン B — クールグレー（確認用）</h1>
+<p class="note">画面3種（ホーム・音声入力・記録一覧）でご確認ください</p>
+
+<div class="phone-wrap">
+
+  <!-- ===== 画面1: ホーム ===== -->
+  <div>
+    <div class="screen-label">① ホーム画面</div>
+    <div class="phone-frame">
+      <div class="header">
+        <div>
+          <div class="header-title">将棋 Analytics</div>
+          <div class="header-sub">今月 12勝 8敗 · 勝率 60%</div>
+        </div>
+        <span class="header-bell">🔔</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num">12</div>
+          <div class="stat-label">今月の勝ち</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">8</div>
+          <div class="stat-label">今月の負け</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">60%</div>
+          <div class="stat-label">勝率</div>
+        </div>
+      </div>
+
+      <div class="section-label">📊 今週の弱点</div>
+      <div class="card">
+        <div class="card-title">寄せの読み漏れ</div>
+        <div class="card-body">終盤で詰め筋を見落とすケースが3局続いています。次の対局前に必ず確認しましょう。</div>
+        <div>
+          <span class="tag">寄せの読み漏れ</span>
+          <span class="tag">中盤判断ミス</span>
+        </div>
+      </div>
+
+      <div class="section-label">📋 最近の対局</div>
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">🏯</div>
+          <div>
+            <div class="list-name">棋の音 香落ち下手</div>
+            <div class="list-sub">会館初段 · 左美濃 vs 持久戦矢倉</div>
+          </div>
+        </div>
+        <div class="result win">勝ち</div>
+      </div>
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">⚔️</div>
+          <div>
+            <div class="list-name">将棋ウォーズ 10切れ</div>
+            <div class="list-sub">初段 · 角換わり腰掛銀</div>
+          </div>
+        </div>
+        <div class="result lose">負け</div>
+      </div>
+
+      <div class="nav-bar">
+        <div class="nav-item active">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2 3 11v9.8h6.5v-6h5v6H21V11z"/></svg>
+          ホーム
+        </div>
+        <div class="nav-item">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+          記録
+        </div>
+        <div class="nav-item">
+          <div class="nav-mic-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </div>
+          記録する
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-analysis.png" alt="分析">
+          分析
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-study.png" alt="学習">
+          学習
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 画面2: 音声入力 ===== -->
+  <div>
+    <div class="screen-label">② 音声入力画面</div>
+    <div class="phone-frame">
+      <div class="header">
+        <div class="header-title" style="font-size:15px">対局を記録する</div>
+      </div>
+
+      <div style="padding: 16px 16px 0; font-size: 12px; color: #94a3b8; line-height: 1.6;">
+        対局直後に振り返りを話してください。
+      </div>
+
+      <div style="height: 12px;"></div>
+      <div class="guide-box">
+        <div class="guide-title">この順番で話すと精度が上がります</div>
+        <div class="guide-row"><span class="step-num">1.</span><span class="step-label">対局形式</span><span class="step-eg">例）棋の音香落ち下手</span></div>
+        <div class="guide-row"><span class="step-num">2.</span><span class="step-label">相手の段位・級位</span><span class="step-eg">例）会館初段</span></div>
+        <div class="guide-row"><span class="step-num">3.</span><span class="step-label">戦型</span><span class="step-eg">例）私は左美濃、相手は矢倉</span></div>
+        <div class="guide-row"><span class="step-num">4.</span><span class="step-label">問題局面までの流れ</span></div>
+        <div class="guide-row"><span class="step-num">5.</span><span class="step-label">局面での判断とその理由</span></div>
+        <div class="guide-row"><span class="step-num">6.</span><span class="step-label">敗因・疑問手だった理由</span></div>
+        <div class="guide-row"><span class="step-num">7.</span><span class="step-label">最善手・改善手とその理由</span></div>
+      </div>
+
+      <div class="mic-wrap">
+        <button class="mic-btn">🎤</button>
+      </div>
+      <div style="text-align:center; font-size:11px; color:#94a3b8; margin-top:6px;">
+        タップして録音開始
+      </div>
+
+      <div style="height:16px;"></div>
+
+      <div style="margin: 0 16px; background:#f8faff; border:1px dashed #dbeafe; border-radius:10px; padding:12px;">
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:6px;">前の対局の下書き（昨日）</div>
+        <div style="font-size:12px; color:#1e293b;">棋の音香落ち下手、会館初段の相手に…</div>
+      </div>
+
+      <div class="nav-bar" style="margin-top:auto;">
+        <div class="nav-item">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2 3 11v9.8h6.5v-6h5v6H21V11z"/></svg>
+          ホーム
+        </div>
+        <div class="nav-item">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+          記録
+        </div>
+        <div class="nav-item active">
+          <div class="nav-mic-btn" style="background:#1d4ed8;">
+            <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </div>
+          記録する
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-analysis.png" alt="分析">
+          分析
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-study.png" alt="学習">
+          学習
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 画面3: 記録一覧 ===== -->
+  <div>
+    <div class="screen-label">③ 記録一覧</div>
+    <div class="phone-frame">
+      <div class="header">
+        <div class="header-title">記録一覧</div>
+        <span style="font-size:13px; color:#2563eb; font-weight:600;">絞り込み</span>
+      </div>
+
+      <div class="section-label">今月 — 6月</div>
+
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">🏯</div>
+          <div>
+            <div class="list-name">棋の音 香落ち下手</div>
+            <div class="list-sub">6/8 · 会館初段 · 左美濃 vs 持久戦矢倉</div>
+          </div>
+        </div>
+        <div class="result win">勝ち</div>
+      </div>
+
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">⚔️</div>
+          <div>
+            <div class="list-name">将棋ウォーズ 10切れ</div>
+            <div class="list-sub">6/7 · 初段 · 角換わり腰掛銀</div>
+          </div>
+        </div>
+        <div class="result lose">負け</div>
+      </div>
+
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">🏯</div>
+          <div>
+            <div class="list-name">棋の音 平手</div>
+            <div class="list-sub">6/5 · 棋の音初段 · 四間飛車 vs 居飛車</div>
+          </div>
+        </div>
+        <div class="result lose">負け</div>
+      </div>
+
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">⚔️</div>
+          <div>
+            <div class="list-name">将棋ウォーズ 10切れ</div>
+            <div class="list-sub">6/3 · 2段 · 右玉</div>
+          </div>
+        </div>
+        <div class="result win">勝ち</div>
+      </div>
+
+      <div class="list-item">
+        <div class="list-left">
+          <div class="list-badge">🏯</div>
+          <div>
+            <div class="list-name">棋の音 香落ち下手</div>
+            <div class="list-sub">6/1 · 会館初段 · 左美濃 vs 矢倉</div>
+          </div>
+        </div>
+        <div class="result win">勝ち</div>
+      </div>
+
+      <div class="nav-bar" style="margin-top:auto;">
+        <div class="nav-item">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2 3 11v9.8h6.5v-6h5v6H21V11z"/></svg>
+          ホーム
+        </div>
+        <div class="nav-item active">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+          記録
+        </div>
+        <div class="nav-item">
+          <div class="nav-mic-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </div>
+          記録する
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-analysis.png" alt="分析">
+          分析
+        </div>
+        <div class="nav-item">
+          <img class="nav-photo" src="public/images/icon-study.png" alt="学習">
+          学習
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="font-size:13px; color:#64748b; text-align:center;">
+  このデザインでよければ「パターンBで進めて」と伝えてください。
+</p>
+
+</body>
+</html>
