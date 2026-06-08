@@ -277,10 +277,6 @@ export function RecordPreviewForm({
         onChange={(kifuText) => setDraft((d) => ({ ...d, kifuText }))}
       />
 
-      <div className="flex gap-3 border-t border-[var(--color-border)] pt-4">
-        {actionButtons}
-      </div>
-
       <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-[var(--color-border)] bg-[var(--color-bg-sub)]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg gap-3 p-4">{actionButtons}</div>
       </div>
