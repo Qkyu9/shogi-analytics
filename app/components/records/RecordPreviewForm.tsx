@@ -175,7 +175,7 @@ export function RecordPreviewForm({
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">戦型</h2>
         <input
-          placeholder="自分の戦型（例: 右玉）"
+          placeholder="自分の戦型（例: 雁木右玉）"
           value={draft.myStrategy}
           onChange={(e) => setDraft((d) => ({ ...d, myStrategy: e.target.value }))}
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"

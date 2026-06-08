@@ -3,7 +3,12 @@ import {
   CORRECT_TRANSCRIPT_SYSTEM,
   CORRECT_TRANSCRIPT_USER,
 } from "@/app/lib/prompts/correct-transcript";
+import { resolveMigiGyokuInText } from "@/app/lib/migi-gyoku-strategy";
 import { applyDictionaryCorrections } from "@/app/lib/shogi-term-corrections";
+
+function finalizeTranscript(text: string): string {
+  return resolveMigiGyokuInText(applyDictionaryCorrections(text));
+}
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
       const detail = await response.text();
       console.error("correct-transcript error:", detail);
       // LLM失敗時は辞書のみ適用して返す
-      const fallback = applyDictionaryCorrections(raw);
+      const fallback = finalizeTranscript(raw);
       return NextResponse.json({
         text: fallback,
         rawText: raw,
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
     };
 
     const llmText = data.choices?.[0]?.message?.content?.trim();
-    const text = applyDictionaryCorrections(llmText || raw);
+    const text = finalizeTranscript(llmText || raw);
 
     return NextResponse.json({
       text,

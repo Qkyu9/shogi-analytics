@@ -4,7 +4,16 @@ import {
   SUMMARIZE_SYSTEM_PROMPT,
   SUMMARIZE_USER_PROMPT,
 } from "@/app/lib/prompts/summarize";
+import {
+  resolveMigiGyokuInText,
+  resolveMyStrategy,
+} from "@/app/lib/migi-gyoku-strategy";
 import { applyDictionaryCorrections } from "@/app/lib/shogi-term-corrections";
+import { normalizeWeaknessTag } from "@/app/lib/weakness-tags";
+
+function finalizeText(text: string): string {
+  return resolveMigiGyokuInText(applyDictionaryCorrections(text));
+}
 
 const VALID_VENUES: VenueType[] = [
   "shogi_wars_10min",
@@ -67,26 +76,28 @@ function normalizePlayedAt(value?: string): string {
   return parsed.toISOString();
 }
 
-function toDraft(raw: RawSummary, fallbackVenue?: VenueType): GameRecordDraft {
+function toDraft(
+  raw: RawSummary,
+  fallbackVenue?: VenueType,
+  transcript?: string
+): GameRecordDraft {
   const positions: GamePosition[] = (raw.positions ?? [])
     .filter((p) => p && (p.sceneDescription || p.defeatCause))
     .map((p) => ({
-      sceneDescription: applyDictionaryCorrections(
-        p.sceneDescription?.trim() ?? ""
-      ),
-      defeatCause: applyDictionaryCorrections(p.defeatCause?.trim() ?? ""),
-      correctMove: applyDictionaryCorrections(p.correctMove?.trim() ?? ""),
-      lesson: applyDictionaryCorrections(p.lesson?.trim() ?? ""),
+      sceneDescription: finalizeText(p.sceneDescription?.trim() ?? ""),
+      defeatCause: finalizeText(p.defeatCause?.trim() ?? ""),
+      correctMove: finalizeText(p.correctMove?.trim() ?? ""),
+      lesson: finalizeText(p.lesson?.trim() ?? ""),
     }));
+
+  const myStrategyRaw = raw.myStrategy?.trim() ?? "";
 
   return {
     playedAt: normalizePlayedAt(raw.playedAt),
     venueType: normalizeVenue(raw.venueType) ?? fallbackVenue ?? "other",
     result: normalizeResult(raw.result),
-    myStrategy: applyDictionaryCorrections(raw.myStrategy?.trim() ?? ""),
-    opponentStrategy: applyDictionaryCorrections(
-      raw.opponentStrategy?.trim() ?? ""
-    ),
+    myStrategy: resolveMyStrategy(myStrategyRaw, transcript),
+    opponentStrategy: finalizeText(raw.opponentStrategy?.trim() ?? ""),
     positions:
       positions.length > 0
         ? positions
@@ -98,7 +109,9 @@ function toDraft(raw: RawSummary, fallbackVenue?: VenueType): GameRecordDraft {
               lesson: "",
             },
           ],
-    tags: (raw.tags ?? []).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
+    tags: (raw.tags ?? [])
+      .map(normalizeWeaknessTag)
+      .filter(Boolean),
   };
 }
 
@@ -207,7 +220,7 @@ export async function POST(request: NextRequest) {
       : await callOpenAI(openaiKey!, transcript, nowJst);
 
     const raw = extractJson(summaryText);
-    const draft = toDraft(raw, body.venueType);
+    const draft = toDraft(raw, body.venueType, transcript);
 
     return NextResponse.json({ draft, transcript });
   } catch (error) {

@@ -1,14 +1,14 @@
 /** 1回のアップロード上限（Vercel 4.5MB 制限に余裕を持たせたしきい値） */
 export const CHUNK_THRESHOLD_BYTES = 3.2 * 1024 * 1024;
 
-/** 録音データがこのサイズを超えたら自動停止（iPhone m4a で約6〜8分想定） */
-export const RECORDING_AUTO_STOP_BYTES = 9 * 1024 * 1024;
+/** 1区間の録音がこのサイズを超えたら区切る（iPhone m4a で約3分・安定動作） */
+export const RECORDING_SEGMENT_PAUSE_BYTES = CHUNK_THRESHOLD_BYTES;
 
-/** 録音の目安上限（秒）。6分程度を想定し、7分で自動停止 */
-export const RECORDING_MAX_DURATION_SEC = 7 * 60;
+/** 1区間の録音時間の上限（秒）。6分で一旦区切り、マイクで続きを録音 */
+export const RECORDING_MAX_DURATION_SEC = 6 * 60;
 
-/** この秒数を超えたら「そろそろ停止」警告 */
-export const RECORDING_WARN_DURATION_SEC = 6 * 60;
+/** この秒数を超えたら「そろそろ区切り」警告 */
+export const RECORDING_WARN_DURATION_SEC = 5 * 60;
 
 export const CHUNK_SECONDS = 45;
 

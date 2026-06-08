@@ -1,4 +1,5 @@
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
+import { normalizeWeaknessTag } from "./weakness-tags";
 
 type ResultBucket = { wins: number; losses: number; draws: number };
 
@@ -54,7 +55,9 @@ export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
   const counts = new Map<string, number>();
   for (const record of records) {
     for (const tag of record.tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      const normalized = normalizeWeaknessTag(tag);
+      if (!normalized) continue;
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
     }
   }
   const total = [...counts.values()].reduce((a, b) => a + b, 0);

@@ -13,7 +13,7 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     result: "win",
     myStrategy: "角換わり右玉",
     opponentStrategy: "角換わりからの矢倉囲い",
-    tags: ["中盤の攻受判断ミス"],
+    tags: ["攻めの手順選択"],
     positionCount: 3,
     positions: [
       {
