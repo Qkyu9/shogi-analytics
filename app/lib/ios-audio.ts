@@ -3,6 +3,8 @@ export const CHUNK_THRESHOLD_BYTES = 3.2 * 1024 * 1024;
 export const CHUNK_SECONDS = 45;
 
 /** iPhone の Chrome/Firefox も WebKit のため、UA だけでは Safari と判定できない */
+export const IOS_TIMESLICE_MS = 1000;
+
 export function isIOSOrWebKit(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -10,6 +12,32 @@ export function isIOSOrWebKit(): boolean {
   if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
   if (/Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua)) return true;
   return false;
+}
+
+/** iOS Safari が公式にサポートする形式（WebKit ブログ推奨） */
+export function getWebKitRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  const candidates = ["audio/mp4", "audio/aac"];
+  return candidates.find((t) => MediaRecorder.isTypeSupported(t));
+}
+
+/** onstop 後に dataavailable が遅れる iOS 向け待機 */
+export async function assembleRecordingBlob(
+  chunks: Blob[],
+  mimeType: string
+): Promise<Blob> {
+  const type = mimeType || "audio/mp4";
+  const tryBuild = () => new Blob(chunks, { type });
+
+  let blob = tryBuild();
+  if (blob.size > 0) return blob;
+
+  await new Promise((r) => setTimeout(r, 200));
+  blob = tryBuild();
+  if (blob.size > 0) return blob;
+
+  await new Promise((r) => setTimeout(r, 400));
+  return tryBuild();
 }
 
 export function audioBlobExtension(blob: Blob): string {

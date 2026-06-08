@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import {
+  assembleRecordingBlob,
   audioBlobExtension,
   buildUploadChunks,
+  getWebKitRecorderMimeType,
+  IOS_TIMESLICE_MS,
   isIOSOrWebKit,
   parseJsonResponse,
 } from "@/app/lib/ios-audio";
@@ -58,18 +61,14 @@ export function VoiceRecorder() {
       timerRef.current = null;
     }
     const recorder = mediaRecorderRef.current;
-    if (recorder) {
-      recorder.ondataavailable = null;
-      recorder.onstop = null;
-      if (recorder.state !== "inactive") {
-        try {
-          recorder.stop();
-        } catch {
-          /* ignore */
-        }
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch {
+        /* ignore */
       }
-      mediaRecorderRef.current = null;
     }
+    mediaRecorderRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     chunksRef.current = [];
@@ -84,13 +83,27 @@ export function VoiceRecorder() {
   }, []);
 
   const pickMimeType = () => {
-    if (webkitRef.current) return "";
+    if (webkitRef.current) return getWebKitRecorderMimeType() ?? "";
     const candidates = [
       "audio/webm;codecs=opus",
       "audio/webm",
       "audio/ogg;codecs=opus",
     ];
     return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+  };
+
+  const startMediaRecorder = (recorder: MediaRecorder, webkit: boolean) => {
+    if (webkit) {
+      // WebKit 公式例: start(1000) で 1 秒ごとにチャンクを受け取る
+      try {
+        recorder.start(IOS_TIMESLICE_MS);
+        return;
+      } catch {
+        recorder.start();
+        return;
+      }
+    }
+    recorder.start(IOS_TIMESLICE_MS);
   };
 
   const correctTranscript = async (raw: string) => {
@@ -180,7 +193,7 @@ export function VoiceRecorder() {
 
     if (blob.size === 0) {
       throw new Error(
-        "録音データが空です。マイクに近づいて話し、もう一度録音してください。"
+        "録音データを取得できませんでした。画面を開いたまま、3秒以上話してから停止してください。改善しない場合はページを再読み込みしてお試しください。"
       );
     }
 
@@ -268,16 +281,13 @@ export function VoiceRecorder() {
       mimeTypeRef.current = recorder.mimeType || mimeType || "audio/mp4";
       chunksRef.current = [];
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      });
 
-      // WebKit: start() に引数を渡すと "The string did not match the expected pattern" になる
-      if (webkit) {
-        recorder.start();
-      } else {
-        recorder.start(1000);
-      }
+      startMediaRecorder(recorder, webkit);
 
       mediaRecorderRef.current = recorder;
       setState("recording");
@@ -312,16 +322,17 @@ export function VoiceRecorder() {
       timerRef.current = null;
     }
 
+    const stream = streamRef.current;
+    const actualType = mimeTypeRef.current || "audio/mp4";
+
     recorder.onstop = async () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      mediaRecorderRef.current = null;
-
-      const actualType = mimeTypeRef.current || "audio/mp4";
-      const blob = new Blob(chunksRef.current, { type: actualType });
-      chunksRef.current = [];
-
       try {
+        const blob = await assembleRecordingBlob(chunksRef.current, actualType);
+        chunksRef.current = [];
+        stream?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+
         await processAudio(blob);
       } catch (err) {
         const message =
@@ -329,16 +340,12 @@ export function VoiceRecorder() {
         setError(message);
         setState("idle");
         setProcessingStep(null);
+        stream?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+        chunksRef.current = [];
       }
     };
-
-    try {
-      if (webkitRef.current && recorder.state === "recording") {
-        recorder.requestData();
-      }
-    } catch {
-      /* ignore */
-    }
 
     try {
       recorder.stop();
