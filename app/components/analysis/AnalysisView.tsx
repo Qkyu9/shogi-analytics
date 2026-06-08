@@ -83,11 +83,7 @@ export function AnalysisView() {
         </p>
       ) : (
         <>
-          <WeaknessRanking
-            stats={stats}
-            totalRecords={filteredRecords.length}
-            lowDataWarning={lowDataWarning}
-          />
+          <WeaknessRanking stats={stats} lowDataWarning={lowDataWarning} />
 
           <div className="my-2 h-px bg-[var(--color-border)]" />
 

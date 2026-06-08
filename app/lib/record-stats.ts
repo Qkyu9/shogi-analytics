@@ -13,12 +13,38 @@ export function filterRecordsByPeriod(
   return records.filter((record) => new Date(record.playedAt) >= cutoff);
 }
 
-type ResultBucket = { wins: number; losses: number; draws: number };
+type ResultBucket = {
+  wins: number;
+  losses: number;
+  draws: number;
+  latestRecordId: string | null;
+  latestPlayedAt: string | null;
+};
 
 function bumpBucket(bucket: ResultBucket, result: GameRecordDetail["result"]) {
   if (result === "win") bucket.wins += 1;
   else if (result === "loss") bucket.losses += 1;
   else bucket.draws += 1;
+}
+
+function emptyBucket(): ResultBucket {
+  return {
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    latestRecordId: null,
+    latestPlayedAt: null,
+  };
+}
+
+function trackLatestRecord(bucket: ResultBucket, record: GameRecordDetail) {
+  if (
+    !bucket.latestPlayedAt ||
+    new Date(record.playedAt) > new Date(bucket.latestPlayedAt)
+  ) {
+    bucket.latestPlayedAt = record.playedAt;
+    bucket.latestRecordId = record.id;
+  }
 }
 
 function bucketToStat(strategy: string, bucket: ResultBucket): StrategyStat {
@@ -30,6 +56,7 @@ function bucketToStat(strategy: string, bucket: ResultBucket): StrategyStat {
     losses: bucket.losses,
     draws: bucket.draws,
     winRate: total > 0 ? Math.round((bucket.wins / total) * 100) : 0,
+    latestRecordId: bucket.latestRecordId,
   };
 }
 
@@ -41,8 +68,9 @@ export function computeStrategyStats(
 
   for (const record of records) {
     const name = pick(record).trim() || "（未入力）";
-    const bucket = buckets.get(name) ?? { wins: 0, losses: 0, draws: 0 };
+    const bucket = buckets.get(name) ?? emptyBucket();
     bumpBucket(bucket, record.result);
+    trackLatestRecord(bucket, record);
     buckets.set(name, bucket);
   }
 
@@ -65,11 +93,20 @@ export function computeOpponentStrategyStats(
 
 export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
   const counts = new Map<string, number>();
+  const latestByTag = new Map<string, { id: string; playedAt: string }>();
+
   for (const record of records) {
     for (const tag of record.tags) {
       const normalized = normalizeWeaknessTag(tag);
       if (!normalized) continue;
       counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      const prev = latestByTag.get(normalized);
+      if (!prev || new Date(record.playedAt) > new Date(prev.playedAt)) {
+        latestByTag.set(normalized, {
+          id: record.id,
+          playedAt: record.playedAt,
+        });
+      }
     }
   }
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
@@ -80,6 +117,7 @@ export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
       tag,
       count,
       percentage: Math.round((count / total) * 100),
+      latestRecordId: latestByTag.get(tag)?.id ?? null,
     }))
     .sort((a, b) => b.count - a.count);
 }

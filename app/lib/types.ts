@@ -51,6 +51,7 @@ export type TagStat = {
   tag: string;
   count: number;
   percentage: number;
+  latestRecordId: string | null;
 };
 
 export type StrategyStat = {
@@ -60,6 +61,7 @@ export type StrategyStat = {
   losses: number;
   draws: number;
   winRate: number;
+  latestRecordId: string | null;
 };
 
 export type StudyAllocation = {

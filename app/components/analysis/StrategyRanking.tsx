@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { StrategyStat } from "@/app/lib/types";
 
 function recordBreakdown(stat: StrategyStat): string {
@@ -33,8 +34,8 @@ export function StrategyRanking({
         {stats.map((stat) => {
           const winBarPct = stat.winRate;
 
-          return (
-            <li key={stat.strategy}>
+          const content = (
+            <>
               <div className="mb-1.5 flex items-start justify-between gap-2 text-sm">
                 <span className="font-medium leading-snug">{stat.strategy}</span>
                 <span className="shrink-0 text-right text-[var(--color-text-sub)]">
@@ -54,12 +55,27 @@ export function StrategyRanking({
                   />
                 )}
               </div>
+            </>
+          );
+
+          return (
+            <li key={stat.strategy}>
+              {stat.latestRecordId ? (
+                <Link
+                  href={`/records/${stat.latestRecordId}`}
+                  className="-mx-1 block rounded-lg px-1 py-0.5 active:bg-[var(--color-surface)]"
+                >
+                  {content}
+                </Link>
+              ) : (
+                content
+              )}
             </li>
           );
         })}
       </ul>
       <p className="text-xs text-[var(--color-text-sub)]">
-        棒の長さ＝勝率（茶色）。0勝の戦型は棒が表示されません。
+        棒の長さ＝勝率（茶色）。0勝の戦型は棒が表示されません。行をタップすると直近の該当対局を開きます。
       </p>
     </section>
   );
