@@ -7,6 +7,7 @@ export function detailToDraft(record: GameRecordDetail): GameRecordDraft {
     result: record.result,
     myStrategy: record.myStrategy,
     opponentStrategy: record.opponentStrategy,
+    opponentRank: record.opponentRank ?? "",
     positions: record.positions.map(
       ({ sceneDescription, defeatCause, correctMove, lesson }) => ({
         sceneDescription,

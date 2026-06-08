@@ -33,6 +33,7 @@ type RawSummary = {
   result?: string;
   myStrategy?: string;
   opponentStrategy?: string;
+  opponentRank?: string;
   positions?: Array<Partial<GamePosition>>;
   tags?: string[];
 };
@@ -98,6 +99,7 @@ function toDraft(
     result: normalizeResult(raw.result),
     myStrategy: resolveMyStrategy(myStrategyRaw, transcript),
     opponentStrategy: finalizeText(raw.opponentStrategy?.trim() ?? ""),
+    opponentRank: finalizeText(raw.opponentRank?.trim() ?? ""),
     positions:
       positions.length > 0
         ? positions

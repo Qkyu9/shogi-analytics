@@ -64,8 +64,13 @@ export function RecordDetailView({ id }: { id: string }) {
         <p className="mt-1 font-semibold">{resultLabel(record.result)}</p>
         <p className="mt-1 text-sm">{record.venueLabel}</p>
         <p className="mt-2">
-          {record.myStrategy} vs {record.opponentStrategy}
+          {record.myStrategy} vs {record.opponentStrategy || "（未入力）"}
         </p>
+        {record.opponentRank.trim() && (
+          <p className="mt-1 text-sm text-[var(--color-text-sub)]">
+            相手の段位・級位: {record.opponentRank}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {record.tags.map((tag) => (
             <TagChip key={tag} label={tag} />

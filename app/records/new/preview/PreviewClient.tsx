@@ -19,7 +19,10 @@ export function PreviewClient() {
       router.replace("/records/new");
       return;
     }
-    setDraft(stored.draft);
+    setDraft({
+      ...stored.draft,
+      opponentRank: stored.draft.opponentRank ?? "",
+    });
     setSourceInputText(
       stored.sourceInputText ?? stored.rawTranscript ?? stored.transcript
     );

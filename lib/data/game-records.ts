@@ -44,6 +44,7 @@ type DbRecord = {
   result: GameRecordDetail["result"];
   my_strategy: string;
   opponent_strategy: string;
+  opponent_rank: string;
   tags: string[];
   kifu_text: string | null;
   source_input_text: string | null;
@@ -75,6 +76,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
     result: row.result,
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
+    opponentRank: row.opponent_rank ?? "",
     tags: row.tags ?? [],
     positionCount: positions.length,
     positions,
@@ -90,6 +92,7 @@ const recordSelect = `
   result,
   my_strategy,
   opponent_strategy,
+  opponent_rank,
   tags,
   kifu_text,
   source_input_text,
@@ -109,7 +112,7 @@ export async function listGameRecordSummaries(
   const { data, error } = await supabase
     .from("game_records")
     .select(
-      "id, played_at, venue_type, result, my_strategy, opponent_strategy, tags, game_positions(sort_order)"
+      "id, played_at, venue_type, result, my_strategy, opponent_strategy, opponent_rank, tags, game_positions(sort_order)"
     )
     .eq("user_id", userId)
     .order("played_at", { ascending: false });
@@ -124,6 +127,7 @@ export async function listGameRecordSummaries(
     result: row.result as GameRecordDetail["result"],
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
+    opponentRank: row.opponent_rank ?? "",
     tags: row.tags ?? [],
     positionCount: row.game_positions?.length ?? 0,
   }));
@@ -162,6 +166,7 @@ export async function insertGameRecord(
       result: draft.result,
       my_strategy: draft.myStrategy.trim(),
       opponent_strategy: draft.opponentStrategy.trim(),
+      opponent_rank: (draft.opponentRank ?? "").trim(),
       tags: draft.tags,
       kifu_text: draft.kifuText?.trim() || null,
       source_input_text: draft.sourceInputText?.trim() || null,
@@ -194,7 +199,12 @@ export async function insertGameRecord(
 function recordFingerprint(
   record: Pick<
     GameRecordDetail,
-    "playedAt" | "venueType" | "result" | "myStrategy" | "opponentStrategy"
+    | "playedAt"
+    | "venueType"
+    | "result"
+    | "myStrategy"
+    | "opponentStrategy"
+    | "opponentRank"
   >
 ): string {
   const played = new Date(record.playedAt);
@@ -213,6 +223,7 @@ function recordFingerprint(
     record.result,
     record.myStrategy.trim(),
     record.opponentStrategy.trim(),
+    record.opponentRank.trim(),
   ].join("|");
 }
 
@@ -232,6 +243,7 @@ export async function updateGameRecord(
       result: draft.result,
       my_strategy: draft.myStrategy.trim(),
       opponent_strategy: draft.opponentStrategy.trim(),
+      opponent_rank: (draft.opponentRank ?? "").trim(),
       tags: draft.tags,
       kifu_text: draft.kifuText?.trim() || null,
       source_input_text: draft.sourceInputText?.trim() || null,
@@ -294,6 +306,7 @@ export async function migrateGameRecords(
         result: summary.result,
         myStrategy: summary.myStrategy,
         opponentStrategy: summary.opponentStrategy,
+        opponentRank: summary.opponentRank,
       })
     );
   }
@@ -310,6 +323,7 @@ export async function migrateGameRecords(
       result: record.result,
       myStrategy: record.myStrategy,
       opponentStrategy: record.opponentStrategy,
+      opponentRank: record.opponentRank,
       positions: record.positions.map(
         ({ sceneDescription, defeatCause, correctMove, lesson }) => ({
           sceneDescription,

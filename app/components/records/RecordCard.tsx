@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { GameRecordSummary } from "@/app/lib/types";
-import { formatDate, resultLabel } from "@/app/lib/utils";
+import { formatDate, formatOpponentMatchLine, resultLabel } from "@/app/lib/utils";
 import { TagChip } from "@/app/components/ui/TagChip";
 
 export function RecordCard({ record }: { record: GameRecordSummary }) {
@@ -16,7 +16,8 @@ export function RecordCard({ record }: { record: GameRecordSummary }) {
           </span>
         </div>
         <p className="mt-1.5 text-sm text-[var(--color-text)]">
-          {record.myStrategy} vs {record.opponentStrategy}
+          {record.myStrategy} vs{" "}
+          {formatOpponentMatchLine(record.opponentStrategy, record.opponentRank)}
         </p>
         <p className="mt-0.5 text-xs text-[var(--color-text-sub)]">
           {record.venueLabel}

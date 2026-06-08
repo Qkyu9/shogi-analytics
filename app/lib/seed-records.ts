@@ -12,6 +12,7 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     venueLabel: "将棋ウォーズ 10分切れ負け",
     result: "win",
     myStrategy: "角換わり右玉",
+    opponentRank: "会館初段",
     opponentStrategy: "角換わりからの矢倉囲い",
     tags: ["攻めの手順選択"],
     positionCount: 3,

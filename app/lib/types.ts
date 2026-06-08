@@ -19,6 +19,8 @@ export type GameRecordDraft = {
   result: GameResult;
   myStrategy: string;
   opponentStrategy: string;
+  /** 相手の段位・級位（例: 会館初段、ウォーズ初段） */
+  opponentRank: string;
   positions: GamePosition[];
   tags: string[];
   kifuText?: string;
@@ -34,6 +36,7 @@ export type GameRecordSummary = {
   result: GameResult;
   myStrategy: string;
   opponentStrategy: string;
+  opponentRank: string;
   tags: string[];
   positionCount: number;
 };

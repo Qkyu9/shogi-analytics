@@ -54,6 +54,17 @@ export function resultLabel(result: GameResult): string {
   return RESULT_LABELS[result];
 }
 
+/** 一覧・詳細用：相手の戦型と段位・級位を1行に */
+export function formatOpponentMatchLine(
+  opponentStrategy: string,
+  opponentRank?: string
+): string {
+  const strategy = opponentStrategy.trim();
+  const rank = opponentRank?.trim() ?? "";
+  if (strategy && rank) return `${strategy}（${rank}）`;
+  return strategy || rank || "（未入力）";
+}
+
 export function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
     .toString()

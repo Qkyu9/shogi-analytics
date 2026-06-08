@@ -49,7 +49,10 @@ export function RecordPreviewForm({
   onDiscard?: () => void;
 }) {
   const router = useRouter();
-  const [draft, setDraft] = useState<GameRecordDraft>(initialData);
+  const [draft, setDraft] = useState<GameRecordDraft>({
+    ...initialData,
+    opponentRank: initialData.opponentRank ?? "",
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const resolvedSourceInput =
@@ -197,6 +200,18 @@ export function RecordPreviewForm({
       </section>
 
       <section className="flex flex-col gap-3">
+        <label className="text-sm font-semibold">相手の段位・級位</label>
+        <input
+          placeholder="例: 会館初段、ウォーズ初段"
+          value={draft.opponentRank ?? ""}
+          onChange={(e) =>
+            setDraft((d) => ({ ...d, opponentRank: e.target.value }))
+          }
+          className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
+        />
+      </section>
+
+      <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">戦型</h2>
         <input
           placeholder="自分の戦型（例: 雁木右玉）"
@@ -205,7 +220,7 @@ export function RecordPreviewForm({
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
         />
         <input
-          placeholder="相手の戦型（例: 雁木）"
+          placeholder="相手の戦型（例: 持久戦矢倉）"
           value={draft.opponentStrategy}
           onChange={(e) =>
             setDraft((d) => ({ ...d, opponentStrategy: e.target.value }))

@@ -49,7 +49,7 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 勝ち・負け・引き分けは文字起こしの内容に従う。
 
 ## 勝ち局の扱い
-- 勝ち局でも記録する。myStrategy と opponentStrategy は必ず埋める
+- 勝ち局でも記録する。myStrategy・opponentStrategy・opponentRank は話されていれば必ず埋める
 - 勝ち局は局面説明・教訓は短くてよい（1局面で可）
 - 敗因タグは勝ち局では空配列でもよい（弱点があれば付与）`;
 
@@ -58,7 +58,7 @@ export const SUMMARIZE_USER_PROMPT = (
   nowJst: string
 ) => `以下は対局直後の振り返りの文字起こしです。構造化要約に変換してください。
 話者は「対局形式 → 相手の段位・級位 → 勝ち負け → 戦型 → …」の順で話すことが多い。
-勝ち・負けどちらでも myStrategy / opponentStrategy は必ず埋めること。
+勝ち・負けどちらでも myStrategy / opponentStrategy は必ず埋めること。相手の段位・級位は opponentRank に分けて入れる（戦型と混ぜない）。
 ドメイン知識の「悪い要約例」に近い書き方は避け、「良い要約例」の論点を反映してください。
 
 【現在日時（日本時間）】
@@ -74,7 +74,8 @@ ${transcript}
   "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
-  "opponentStrategy": "相手の戦型と段位・級位（例: 持久戦矢倉（初段））",
+  "opponentRank": "相手の段位・級位（例: 会館初段、ウォーズ初段。未言及なら空文字）",
+  "opponentStrategy": "相手の戦型のみ（例: 持久戦矢倉。段位は opponentRank に入れる）",
   "positions": [
     {
       "sceneDescription": "局面の状況説明（2〜4文、文脈を残す）",
