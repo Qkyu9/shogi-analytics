@@ -10,7 +10,12 @@ import {
   getWebKitRecorderMimeType,
   IOS_TIMESLICE_MS,
   isIOSOrWebKit,
+  LIVE_SEGMENT_MIN_BYTES,
+  LIVE_TRANSCRIBE_INTERVAL_SEC,
   parseJsonResponse,
+  RECORDING_AUTO_STOP_BYTES,
+  RECORDING_HEALTH_CHECK_SEC,
+  totalChunkBytes,
 } from "@/app/lib/ios-audio";
 import { saveDraft } from "@/app/lib/draft-storage";
 import type { GameRecordDraft } from "@/app/lib/types";
@@ -18,6 +23,7 @@ import {
   clearTranscriptCache,
   formatCacheDate,
   loadTranscriptCache,
+  saveLiveRawTranscript,
   saveTranscriptCache,
   transcriptPreview,
   type CachedVoiceText,
@@ -31,6 +37,7 @@ type RecorderState =
   | "correcting"
   | "summarizing";
 type ProcessingStep = "transcribing" | "correcting" | "summarizing" | null;
+type RecordingSignal = "checking" | "receiving" | "warn-limit";
 
 function MicButtonIcon() {
   return (
@@ -48,12 +55,41 @@ export function VoiceRecorder() {
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState<CachedVoiceText | null>(null);
   const [showCacheOptions, setShowCacheOptions] = useState(false);
+  const [showRawTranscript, setShowRawTranscript] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [liveTranscribing, setLiveTranscribing] = useState(false);
+  const [recordingSignal, setRecordingSignal] =
+    useState<RecordingSignal>("checking");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const mimeTypeRef = useRef<string>("audio/mp4");
   const webkitRef = useRef(false);
+  const durationRef = useRef(0);
+  const abortingRef = useRef(false);
+  const autoStoppingRef = useRef(false);
+  const liveTranscriptRef = useRef("");
+  const segmentChunkStartRef = useRef(0);
+  const liveTranscribeBusyRef = useRef(false);
+
+  const persistLiveRawForRecovery = (text?: string) => {
+    const raw = (text ?? liveTranscriptRef.current).trim();
+    if (!raw) return;
+    saveLiveRawTranscript(raw);
+    setCached(loadTranscriptCache());
+  };
+
+  const appendLiveTranscript = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const appended = liveTranscriptRef.current
+      ? `${liveTranscriptRef.current}\n${trimmed}`
+      : trimmed;
+    liveTranscriptRef.current = appended;
+    setLiveTranscript(appended);
+    persistLiveRawForRecovery(appended);
+  };
 
   const releaseRecorder = () => {
     if (timerRef.current) {
@@ -72,6 +108,121 @@ export function VoiceRecorder() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     chunksRef.current = [];
+    durationRef.current = 0;
+    abortingRef.current = false;
+    autoStoppingRef.current = false;
+  };
+
+  const abortRecording = (message: string) => {
+    if (abortingRef.current) return;
+    abortingRef.current = true;
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    const recorder = mediaRecorderRef.current;
+    const stream = streamRef.current;
+
+    setError(
+      liveTranscriptRef.current.trim()
+        ? `${message}\n\n途中までの文字起こしは下の「音声入力の生テキスト」から確認できます。`
+        : message
+    );
+    setState("idle");
+    setRecordingSignal("checking");
+    persistLiveRawForRecovery();
+
+    if (recorder) {
+      recorder.onstop = () => {
+        const chunksCopy = [...chunksRef.current];
+        const startIdx = segmentChunkStartRef.current;
+        const mimeType = mimeTypeRef.current || "audio/mp4";
+
+        stream?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+        chunksRef.current = [];
+        abortingRef.current = false;
+
+        const unsent = chunksCopy.slice(startIdx);
+        if (unsent.length === 0) return;
+
+        const blob = new Blob(unsent, { type: mimeType });
+        if (blob.size < LIVE_SEGMENT_MIN_BYTES) return;
+
+        void transcribeChunk(blob)
+          .then((text) => {
+            if (text) appendLiveTranscript(text);
+          })
+          .catch(() => {
+            /* 復旧用の追記は失敗しても録音停止は優先済み */
+          });
+      };
+      if (recorder.state !== "inactive") {
+        try {
+          recorder.stop();
+        } catch {
+          stream?.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+          mediaRecorderRef.current = null;
+          chunksRef.current = [];
+          abortingRef.current = false;
+        }
+      }
+    } else {
+      stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      chunksRef.current = [];
+      abortingRef.current = false;
+    }
+  };
+
+  const checkRecordingHealth = () => {
+    if (abortingRef.current || autoStoppingRef.current) return;
+
+    const recorder = mediaRecorderRef.current;
+    const stream = streamRef.current;
+    const secs = durationRef.current;
+    const bytes = totalChunkBytes(chunksRef.current);
+
+    const audioTrack = stream?.getAudioTracks()[0];
+    if (!audioTrack || audioTrack.readyState === "ended") {
+      abortRecording(
+        "マイクの接続が切れました。ページを再読み込みして、もう一度お試しください。"
+      );
+      return;
+    }
+
+    if (recorder && recorder.state !== "recording") {
+      abortRecording(
+        "録音が途中で停止しました。ページを再読み込みして、もう一度お試しください。"
+      );
+      return;
+    }
+
+    if (secs >= RECORDING_HEALTH_CHECK_SEC && bytes === 0) {
+      abortRecording(
+        "音声が録音できていません。マイクの許可を確認し、画面を開いたまま話してから、ページを再読み込みしてお試しください。"
+      );
+      return;
+    }
+
+    if (bytes >= RECORDING_AUTO_STOP_BYTES) {
+      autoStoppingRef.current = true;
+      setRecordingSignal("warn-limit");
+      stopRecording();
+    } else if (bytes >= RECORDING_AUTO_STOP_BYTES * 0.75) {
+      setRecordingSignal("warn-limit");
+    }
+
+    if (
+      secs >= LIVE_TRANSCRIBE_INTERVAL_SEC &&
+      secs % LIVE_TRANSCRIBE_INTERVAL_SEC === 0
+    ) {
+      void transcribeLiveSegment();
+    }
   };
 
   useEffect(() => {
@@ -160,6 +311,7 @@ export function VoiceRecorder() {
     saveTranscriptCache({
       transcript: finalTranscript,
       rawTranscript,
+      liveRawTranscript: rawTranscript ?? liveTranscriptRef.current.trim(),
       draft: summarizeData.draft,
     });
     setCached(loadTranscriptCache());
@@ -170,6 +322,43 @@ export function VoiceRecorder() {
       rawTranscript,
     });
     router.push("/records/new/preview");
+  };
+
+  const transcribeLiveSegment = async (force = false) => {
+    if (liveTranscribeBusyRef.current || abortingRef.current) return;
+
+    const startIdx = segmentChunkStartRef.current;
+    const segmentChunks = chunksRef.current.slice(startIdx);
+    if (segmentChunks.length === 0) return;
+
+    const blob = new Blob(segmentChunks, {
+      type: mimeTypeRef.current || "audio/mp4",
+    });
+    if (!force && blob.size < LIVE_SEGMENT_MIN_BYTES) return;
+
+    liveTranscribeBusyRef.current = true;
+    setLiveTranscribing(true);
+    segmentChunkStartRef.current = chunksRef.current.length;
+
+    try {
+      const text = await transcribeChunk(blob);
+      if (text) appendLiveTranscript(text);
+    } catch {
+      segmentChunkStartRef.current = startIdx;
+    } finally {
+      liveTranscribeBusyRef.current = false;
+      setLiveTranscribing(false);
+    }
+  };
+
+  const flushLiveSegment = async (force = false) => {
+    if (segmentChunkStartRef.current >= chunksRef.current.length) return;
+    await transcribeLiveSegment(force);
+    let retries = 0;
+    while (liveTranscribeBusyRef.current && retries < 40) {
+      await new Promise((r) => setTimeout(r, 250));
+      retries += 1;
+    }
   };
 
   const transcribeChunk = async (chunk: Blob): Promise<string> => {
@@ -220,11 +409,36 @@ export function VoiceRecorder() {
     saveTranscriptCache({
       transcript: corrected,
       rawTranscript: raw,
+      liveRawTranscript: raw,
       isNewTranscript: true,
     });
     setCached(loadTranscriptCache());
 
     await summarizeTranscript(corrected, raw);
+  };
+
+  const handleUseLiveRawTranscript = async () => {
+    const source = cached?.liveRawTranscript?.trim();
+    if (!source) return;
+    setError(null);
+    try {
+      const { corrected, raw } = await correctTranscript(source);
+      saveTranscriptCache({
+        transcript: corrected,
+        rawTranscript: raw,
+        liveRawTranscript: source,
+      });
+      setCached(loadTranscriptCache());
+      await summarizeTranscript(corrected, raw);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "処理中にエラーが発生しました。";
+      setError(
+        `${message}\n\n保存済みの生テキストは「音声入力の生テキスト」から再度お試しできます。`
+      );
+      setState("idle");
+      setProcessingStep(null);
+    }
   };
 
   const handleUseCachedTranscript = async () => {
@@ -255,12 +469,24 @@ export function VoiceRecorder() {
     clearTranscriptCache();
     setCached(null);
     setShowCacheOptions(false);
+    setShowRawTranscript(false);
   };
 
   const startRecording = async () => {
     setError(null);
     setShowCacheOptions(false);
+    setRecordingSignal("checking");
+    liveTranscriptRef.current = "";
+    setLiveTranscript("");
+    setLiveTranscribing(false);
+    segmentChunkStartRef.current = 0;
+    liveTranscribeBusyRef.current = false;
     releaseRecorder();
+
+    if (typeof MediaRecorder === "undefined") {
+      setError("この端末では音声録音に対応していません。");
+      return;
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -284,16 +510,35 @@ export function VoiceRecorder() {
       recorder.addEventListener("dataavailable", (event) => {
         if (event.data && event.data.size > 0) {
           chunksRef.current.push(event.data);
+          setRecordingSignal("receiving");
         }
       });
+
+      recorder.addEventListener("error", () => {
+        abortRecording(
+          "録音中にエラーが発生しました。ページを再読み込みして、もう一度お試しください。"
+        );
+      });
+
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.addEventListener("ended", () => {
+          abortRecording(
+            "マイクの接続が切れました。ページを再読み込みして、もう一度お試しください。"
+          );
+        });
+      }
 
       startMediaRecorder(recorder, webkit);
 
       mediaRecorderRef.current = recorder;
       setState("recording");
       setDuration(0);
+      durationRef.current = 0;
       timerRef.current = setInterval(() => {
-        setDuration((d) => d + 1);
+        durationRef.current += 1;
+        setDuration(durationRef.current);
+        checkRecordingHealth();
       }, 1000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -316,6 +561,7 @@ export function VoiceRecorder() {
   const stopRecording = () => {
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === "inactive") return;
+    if (abortingRef.current) return;
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -326,24 +572,36 @@ export function VoiceRecorder() {
     const actualType = mimeTypeRef.current || "audio/mp4";
 
     recorder.onstop = async () => {
+      if (abortingRef.current) return;
+
       try {
+        await flushLiveSegment(true);
         const blob = await assembleRecordingBlob(chunksRef.current, actualType);
         chunksRef.current = [];
         stream?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
         mediaRecorderRef.current = null;
+        autoStoppingRef.current = false;
+        setRecordingSignal("checking");
 
         await processAudio(blob);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "処理中にエラーが発生しました。";
-        setError(message);
+        persistLiveRawForRecovery();
+        setError(
+          liveTranscriptRef.current.trim()
+            ? `${message}\n\n途中までの文字起こしは下の「音声入力の生テキスト」から確認できます。`
+            : message
+        );
         setState("idle");
         setProcessingStep(null);
         stream?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
         mediaRecorderRef.current = null;
         chunksRef.current = [];
+        autoStoppingRef.current = false;
+        setRecordingSignal("checking");
       }
     };
 
@@ -370,6 +628,8 @@ export function VoiceRecorder() {
     state === "summarizing";
 
   const hasCache = state === "idle" && cached && !isProcessing;
+  const savedLiveRaw = cached?.liveRawTranscript?.trim();
+  const showLivePanel = state === "recording" || isProcessing;
 
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8">
@@ -408,6 +668,32 @@ export function VoiceRecorder() {
         </p>
       )}
 
+      {showLivePanel && (
+        <section className="flex w-full max-w-sm min-h-[160px] max-h-[min(45vh,300px)] flex-col gap-2 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-4 shadow-sm">
+          <p className="text-xs font-semibold text-[var(--color-text-sub)]">
+            文字起こし（話すとここに表示されます）
+          </p>
+          <div className="flex-1 overflow-y-auto">
+            {liveTranscript ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
+                {liveTranscript}
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--color-text-sub)]">
+                {state === "recording"
+                  ? "音声を聞き取っています…"
+                  : "最終の文字起こしを処理しています…"}
+              </p>
+            )}
+            {liveTranscribing && (
+              <p className="mt-2 text-xs text-[var(--color-primary)]">
+                続きを文字起こし中…
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
       <button
         type="button"
         onClick={handleMicClick}
@@ -425,10 +711,33 @@ export function VoiceRecorder() {
       </button>
 
       {state === "recording" && (
-        <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-danger)]">
-          <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-danger)]" />
-          録音中 {formatDuration(duration)}
-        </p>
+        <div className="flex w-full max-w-sm flex-col items-center gap-2">
+          <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-danger)]">
+            <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-danger)]" />
+            録音中 {formatDuration(duration)}
+          </p>
+          <p
+            className={`text-center text-xs ${
+              recordingSignal === "receiving"
+                ? "text-[var(--color-success)]"
+                : recordingSignal === "warn-limit"
+                  ? "text-[var(--color-primary)]"
+                  : "text-[var(--color-text-sub)]"
+            }`}
+          >
+            {recordingSignal === "receiving"
+              ? "音声を受信中"
+              : recordingSignal === "warn-limit"
+                ? "録音が長くなっています。そろそろ停止してください"
+                : "マイクを確認しています…"}
+          </p>
+        </div>
+      )}
+
+      {state === "recording" && error && (
+        <div className="w-full max-w-sm rounded-lg bg-[var(--color-surface)] p-3 text-sm whitespace-pre-wrap text-[var(--color-danger)]">
+          {error}
+        </div>
       )}
 
       {isProcessing && (
@@ -446,16 +755,55 @@ export function VoiceRecorder() {
         </div>
       )}
 
-      {error && (
-        <div className="w-full max-w-sm rounded-lg bg-[var(--color-surface)] p-3 text-sm text-[var(--color-danger)]">
+      {error && state !== "recording" && (
+        <div className="w-full max-w-sm rounded-lg bg-[var(--color-surface)] p-3 text-sm whitespace-pre-wrap text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
       {state === "idle" && !error && (
         <p className="text-center text-xs text-[var(--color-text-sub)]">
-          録音後は文字起こし→将棋用語補正→要約の順で処理します。
+          録音中は10秒ごとに文字が表示されます。停止後に将棋用語補正→要約へ進みます。
         </p>
+      )}
+
+      {state === "idle" && savedLiveRaw && !isProcessing && (
+        <section className="w-full max-w-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3">
+          <button
+            type="button"
+            onClick={() => setShowRawTranscript((v) => !v)}
+            className="flex w-full items-center justify-between text-left text-sm font-semibold text-[var(--color-text)]"
+          >
+            <span>音声入力の生テキスト</span>
+            <span className="text-xs font-normal text-[var(--color-text-sub)]">
+              {showRawTranscript ? "閉じる" : "開く"}
+            </span>
+          </button>
+          {!showRawTranscript && (
+            <p className="mt-1 text-xs text-[var(--color-text-sub)]">
+              {formatCacheDate(cached!.savedAt)} ・ {transcriptPreview(savedLiveRaw, 40)}
+            </p>
+          )}
+          {showRawTranscript && (
+            <div className="mt-3 flex flex-col gap-3">
+              <p className="text-xs text-[var(--color-text-sub)]">
+                将棋用語の補正前の文字起こしです。エラー時の復旧やメモへの貼り付けに使えます。
+              </p>
+              <div className="max-h-[min(50vh,320px)] overflow-y-auto rounded-md bg-[var(--color-surface)] p-3">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
+                  {savedLiveRaw}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={handleUseLiveRawTranscript}
+              >
+                このテキストから要約を作る
+              </Button>
+            </div>
+          )}
+        </section>
       )}
 
       {hasCache && (

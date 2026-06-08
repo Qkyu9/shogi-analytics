@@ -5,6 +5,31 @@ export const CHUNK_SECONDS = 45;
 /** iPhone の Chrome/Firefox も WebKit のため、UA だけでは Safari と判定できない */
 export const IOS_TIMESLICE_MS = 1000;
 
+/** この秒数経過してもデータが0バイトなら録音中にエラー表示 */
+export const RECORDING_HEALTH_CHECK_SEC = 3;
+
+/** このサイズを超えたら録音中に自動停止して処理へ（最後まで話してから失敗させない） */
+export const RECORDING_AUTO_STOP_BYTES = CHUNK_THRESHOLD_BYTES;
+
+/** 録音中にこの秒数ごとに文字起こしして画面に追記する */
+export const LIVE_TRANSCRIBE_INTERVAL_SEC = 10;
+
+/** ライブ文字起こしに送る最小音声サイズ（バイト） */
+export const LIVE_SEGMENT_MIN_BYTES = 8_000;
+
+export function isStandalonePWA(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    // @ts-expect-error legacy iOS Safari
+    window.navigator.standalone === true
+  );
+}
+
+export function totalChunkBytes(chunks: Blob[]): number {
+  return chunks.reduce((sum, c) => sum + c.size, 0);
+}
+
 export function isIOSOrWebKit(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
