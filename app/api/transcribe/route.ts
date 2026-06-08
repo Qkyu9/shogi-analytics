@@ -65,13 +65,16 @@ export async function POST(request: NextRequest) {
     }
 
     // type が空の場合（iOS Safari）は m4a をデフォルトにする
-    const ext = audio.type.includes("mp4") || audio.type === ""
-      ? "m4a"
-      : audio.type.includes("webm")
-        ? "webm"
-        : audio.type.includes("ogg")
-          ? "ogg"
-          : "m4a";
+    const type = (audio.type || "").toLowerCase();
+    const ext = type.includes("wav")
+      ? "wav"
+      : type.includes("mp4") || type.includes("m4a") || type === ""
+        ? "m4a"
+        : type.includes("webm")
+          ? "webm"
+          : type.includes("ogg")
+            ? "ogg"
+            : "m4a";
 
     let lastError = "";
     for (const model of TRANSCRIBE_MODELS) {

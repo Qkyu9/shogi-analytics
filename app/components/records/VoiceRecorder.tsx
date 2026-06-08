@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
+import {
+  audioBlobExtension,
+  buildUploadChunks,
+  isIOSOrWebKit,
+  parseJsonResponse,
+} from "@/app/lib/ios-audio";
 import { saveDraft } from "@/app/lib/draft-storage";
 import type { GameRecordDraft } from "@/app/lib/types";
 import {
@@ -43,28 +49,42 @@ export function VoiceRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const mimeTypeRef = useRef<string>("audio/webm");
+  const mimeTypeRef = useRef<string>("audio/mp4");
+  const webkitRef = useRef(false);
+
+  const releaseRecorder = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") {
+        try {
+          recorder.stop();
+        } catch {
+          /* ignore */
+        }
+      }
+      mediaRecorderRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    chunksRef.current = [];
+  };
 
   useEffect(() => {
+    webkitRef.current = isIOSOrWebKit();
     setCached(loadTranscriptCache());
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      releaseRecorder();
     };
   }, []);
 
   const pickMimeType = () => {
-    // Safari全般（iPhone・iPad・macOS）はmimeType指定でエラーになるためスキップ
-    // Chrome/Firefox/Edgeは識別子にSafariも含むため、それらを除外してSafariのみ検出
-    const isSafari =
-      /Safari/.test(navigator.userAgent) &&
-      !/Chrome|CriOS|FxiOS|EdgA|OPR/.test(navigator.userAgent);
-    // iPadOS 13+ はデスクトップモードでMacintoshと表示されるため別途検出
-    const isIPadOS =
-      /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
-
-    if (isSafari || isIPadOS) return "";
-
+    if (webkitRef.current) return "";
     const candidates = [
       "audio/webm;codecs=opus",
       "audio/webm",
@@ -83,11 +103,11 @@ export function VoiceRecorder() {
       body: JSON.stringify({ transcript: raw }),
     });
 
-    const data = (await res.json()) as {
+    const data = await parseJsonResponse<{
       text?: string;
       rawText?: string;
       error?: string;
-    };
+    }>(res);
 
     if (!res.ok) {
       throw new Error(data.error ?? "将棋用語の補正に失敗しました。");
@@ -109,11 +129,11 @@ export function VoiceRecorder() {
       body: JSON.stringify({ transcript }),
     });
 
-    const summarizeData = (await summarizeRes.json()) as {
+    const summarizeData = await parseJsonResponse<{
       draft?: GameRecordDraft;
       transcript?: string;
       error?: string;
-    };
+    }>(summarizeRes);
 
     if (!summarizeRes.ok) {
       throw new Error(summarizeData.error ?? "要約の生成に失敗しました。");
@@ -139,31 +159,43 @@ export function VoiceRecorder() {
     router.push("/records/new/preview");
   };
 
+  const transcribeChunk = async (chunk: Blob): Promise<string> => {
+    const ext = audioBlobExtension(chunk);
+    const form = new FormData();
+    form.append("audio", chunk, `recording.${ext}`);
+
+    const res = await fetch("/api/transcribe", { method: "POST", body: form });
+    const data = await parseJsonResponse<{ text?: string; error?: string }>(res);
+
+    if (!res.ok) {
+      throw new Error(data.error ?? "文字起こしに失敗しました。");
+    }
+
+    return data.text?.trim() ?? "";
+  };
+
   const processAudio = async (blob: Blob) => {
     setState("transcribing");
     setProcessingStep("transcribing");
 
-    // SafariはFormData.appendにextensionなしのファイル名を渡すと
-    // "The string did not match the expected pattern" を投げるため拡張子を付ける
-    const ext = blob.type.includes("webm") ? "webm" : "m4a";
-    const transcribeForm = new FormData();
-    transcribeForm.append("audio", blob, `recording.${ext}`);
-
-    const transcribeRes = await fetch("/api/transcribe", {
-      method: "POST",
-      body: transcribeForm,
-    });
-
-    const transcribeData = (await transcribeRes.json()) as {
-      text?: string;
-      error?: string;
-    };
-
-    if (!transcribeRes.ok) {
-      throw new Error(transcribeData.error ?? "文字起こしに失敗しました。");
+    if (blob.size === 0) {
+      throw new Error(
+        "録音データが空です。マイクに近づいて話し、もう一度録音してください。"
+      );
     }
 
-    const rawTranscript = transcribeData.text?.trim();
+    const chunks = await buildUploadChunks(blob);
+    const parts: string[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      if (chunks.length > 1) {
+        setProcessingStep("transcribing");
+      }
+      const text = await transcribeChunk(chunks[i]);
+      if (text) parts.push(text);
+    }
+
+    const rawTranscript = parts.join("\n").trim();
     if (!rawTranscript) {
       throw new Error(
         "音声を認識できませんでした。もう少し大きな声ではっきり話してから、再度お試しください。"
@@ -215,38 +247,38 @@ export function VoiceRecorder() {
   const startRecording = async () => {
     setError(null);
     setShowCacheOptions(false);
+    releaseRecorder();
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // 前の録音セッションの残留状態をクリア
-      mediaRecorderRef.current = null;
-      chunksRef.current = [];
-
       const mimeType = pickMimeType();
-      // SafariはmimeType指定不要 → timeslice指定も不安定（2回目以降でエラー）
-      const isSafariLike = mimeType === "";
+      const webkit = webkitRef.current;
 
       let recorder: MediaRecorder;
       try {
-        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
       } catch {
         recorder = new MediaRecorder(stream);
       }
-      // recorder.mimeType で実際に使われる形式を取得。空の場合はiOSのデフォルト audio/mp4 を使う
+
       mimeTypeRef.current = recorder.mimeType || mimeType || "audio/mp4";
+      chunksRef.current = [];
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
 
-      // iOS/Safariではtimeslice指定が2回目以降で "The string did not match the expected pattern"
-      // を引き起こすため、引数なしで開始する
-      try {
-        recorder.start(isSafariLike ? undefined : 1000);
-      } catch {
+      // WebKit: start() に引数を渡すと "The string did not match the expected pattern" になる
+      if (webkit) {
         recorder.start();
+      } else {
+        recorder.start(1000);
       }
+
       mediaRecorderRef.current = recorder;
       setState("recording");
       setDuration(0);
@@ -255,8 +287,16 @@ export function VoiceRecorder() {
       }, 1000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("Permission") || msg.includes("NotAllowed") || msg.includes("denied")) {
+      if (
+        msg.includes("Permission") ||
+        msg.includes("NotAllowed") ||
+        msg.includes("denied")
+      ) {
         setError("マイクの使用が許可されていません。設定から許可してください。");
+      } else if (msg.includes("expected pattern")) {
+        setError(
+          "録音の開始に失敗しました。ページを再読み込みしてから、もう一度お試しください。"
+        );
       } else {
         setError("録音を開始できませんでした。ページを再読み込みしてもう一度お試しください。");
       }
@@ -275,10 +315,11 @@ export function VoiceRecorder() {
     recorder.onstop = async () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+      mediaRecorderRef.current = null;
 
-      // iOSフォールバックとして audio/mp4 を使い、常に type を持つBlobを作る
       const actualType = mimeTypeRef.current || "audio/mp4";
       const blob = new Blob(chunksRef.current, { type: actualType });
+      chunksRef.current = [];
 
       try {
         await processAudio(blob);
@@ -291,7 +332,24 @@ export function VoiceRecorder() {
       }
     };
 
-    recorder.stop();
+    try {
+      if (webkitRef.current && recorder.state === "recording") {
+        recorder.requestData();
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      recorder.stop();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "録音の停止に失敗しました。";
+      setError(message);
+      setState("idle");
+      setProcessingStep(null);
+      releaseRecorder();
+    }
   };
 
   const handleMicClick = () => {
@@ -375,7 +433,9 @@ export function VoiceRecorder() {
                 ? "将棋用語を補正中..."
                 : "AIが要約を作成中..."}
           </p>
-          <p className="mt-1 text-xs">30秒ほどかかることがあります</p>
+          <p className="mt-1 text-xs">
+            長い録音は分割して処理します（1〜2分ほどかかることがあります）
+          </p>
         </div>
       )}
 
