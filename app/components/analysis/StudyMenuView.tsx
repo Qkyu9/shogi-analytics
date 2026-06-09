@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BookSuggestionsPanel } from "@/app/components/analysis/BookSuggestionsPanel";
 import { StudyMenuCard } from "@/app/components/analysis/StudyMenuCard";
-import { getOwnedBookIds } from "@/app/lib/owned-books-storage";
+import { getOwnedBooks } from "@/app/lib/owned-books-storage";
 import { getAllRecordDetails } from "@/app/lib/record-storage";
 import {
   buildStudyMenu,
@@ -24,10 +24,10 @@ export function StudyMenuView() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    Promise.all([getAllRecordDetails(), getOwnedBookIds().catch(() => [])])
-      .then(([records, ownedBookIds]) => {
-        setOwnedBookCount(ownedBookIds.length);
-        const menu = buildStudyMenu(records, ownedBookIds);
+    Promise.all([getAllRecordDetails(), getOwnedBooks().catch(() => [])])
+      .then(([records, ownedBooks]) => {
+        setOwnedBookCount(ownedBooks.length);
+        const menu = buildStudyMenu(records, ownedBooks);
         if (!menu) {
           setAllocations([]);
           setOwnedBookPicks([]);

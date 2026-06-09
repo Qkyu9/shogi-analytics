@@ -1,3 +1,14 @@
+import type { BookCategory } from "@/app/lib/book-catalog";
+import type { BookClassification } from "@/app/lib/book-classifier";
+
+export type OwnedBook = {
+  id?: string;
+  title: string;
+  category: BookCategory;
+  studyAction: string;
+  autoClassified: boolean;
+};
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -14,18 +25,30 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
-export async function getOwnedBookIds(): Promise<string[]> {
-  const { bookIds } = await apiFetch<{ bookIds: string[] }>("/api/user-books");
-  return bookIds;
+export async function getOwnedBooks(): Promise<OwnedBook[]> {
+  const { books } = await apiFetch<{ books: OwnedBook[] }>("/api/user-books");
+  return books;
 }
 
-export async function saveOwnedBookIds(bookIds: string[]): Promise<string[]> {
-  const { bookIds: saved } = await apiFetch<{ bookIds: string[] }>(
+export async function saveOwnedBooks(books: OwnedBook[]): Promise<OwnedBook[]> {
+  const { books: saved } = await apiFetch<{ books: OwnedBook[] }>(
     "/api/user-books",
     {
       method: "PUT",
-      body: JSON.stringify({ bookIds }),
+      body: JSON.stringify({ books }),
     }
   );
   return saved;
+}
+
+export async function classifyBookTitle(
+  title: string
+): Promise<BookClassification> {
+  const { classification } = await apiFetch<{
+    classification: BookClassification;
+  }>("/api/classify-book", {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+  return classification;
 }

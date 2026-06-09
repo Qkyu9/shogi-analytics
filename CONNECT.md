@@ -35,6 +35,7 @@
    - `supabase/migrations/20250608_opponent_rank.sql`（相手の段位・級位列の追加。既存DBにも実行）
    - `supabase/migrations/20250608_handicap.sql`（手合・先手/後手列の追加。既存DBにも実行）
    - `supabase/migrations/20250608_user_owned_books.sql`（購入済み棋書の登録テーブル。既存DBにも実行）
+   - `supabase/migrations/20250608_user_owned_books_v2.sql`（書名・カテゴリ列の追加。v1実行済みDBにも実行）
 3. 左メニュー **Table Editor** で `users` と `game_records` ができているか確認
 
 ### 1-3. API キーを控える

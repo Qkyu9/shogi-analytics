@@ -1,15 +1,34 @@
 import { NextResponse } from "next/server";
-import { BOOK_CATALOG } from "@/app/lib/book-catalog";
+import { BOOK_CATEGORY_OPTIONS, type BookCategory } from "@/app/lib/book-catalog";
 import {
-  listOwnedBookIds,
-  replaceOwnedBookIds,
+  listOwnedBooks,
+  replaceOwnedBooks,
+  type OwnedBookInput,
 } from "@/lib/data/user-owned-books";
 import {
   ensureSupabaseUser,
   getSupabaseUserByClerkId,
 } from "@/lib/supabase/auth-helpers";
 
-const VALID_BOOK_IDS = new Set(BOOK_CATALOG.map((b) => b.id));
+function parseBooks(body: { books?: unknown }): OwnedBookInput[] {
+  if (!Array.isArray(body.books)) return [];
+  const valid = new Set(BOOK_CATEGORY_OPTIONS);
+  return body.books
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const title = String(row.title ?? "").trim();
+      const category = String(row.category ?? "").trim() as BookCategory;
+      if (!title || !valid.has(category)) return null;
+      return {
+        title,
+        category,
+        studyAction: String(row.studyAction ?? "").trim(),
+        autoClassified: row.autoClassified !== false,
+      };
+    })
+    .filter((book): book is OwnedBookInput => book !== null);
+}
 
 export async function GET() {
   try {
@@ -17,8 +36,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const bookIds = await listOwnedBookIds(user.id);
-    return NextResponse.json({ bookIds });
+    const books = await listOwnedBooks(user.id);
+    return NextResponse.json({ books });
   } catch (error) {
     console.error("GET /api/user-books error:", error);
     return NextResponse.json(
@@ -35,11 +54,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as { bookIds?: string[] };
-    const raw = Array.isArray(body.bookIds) ? body.bookIds : [];
-    const bookIds = raw.filter((id) => VALID_BOOK_IDS.has(id));
-    const saved = await replaceOwnedBookIds(user.id, bookIds);
-    return NextResponse.json({ bookIds: saved });
+    const body = (await request.json()) as { books?: unknown };
+    const books = parseBooks(body);
+    const saved = await replaceOwnedBooks(user.id, books);
+    return NextResponse.json({ books: saved });
   } catch (error) {
     console.error("PUT /api/user-books error:", error);
     return NextResponse.json(

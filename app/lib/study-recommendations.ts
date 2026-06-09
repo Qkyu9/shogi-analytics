@@ -1,8 +1,14 @@
 import {
-  BOOK_CATALOG,
-  getBookById,
-  type BookCatalogEntry,
+  CATEGORY_COVERS_TAGS,
+  DEFAULT_STUDY_ACTION,
+  type BookCategory,
 } from "@/app/lib/book-catalog";
+import type { OwnedBook } from "@/app/lib/owned-books-storage";
+import {
+  FAMOUS_BOOK_IDS,
+  getKnownBookById,
+  findKnownBook,
+} from "@/app/lib/known-books";
 import {
   computeMyStrategyStats,
   computeTagStats,
@@ -26,67 +32,63 @@ export type StudyMenuResult = {
 
 const DAILY_STUDY_MINUTES = 60;
 
-function scoreBookForTags(book: BookCatalogEntry, topTags: string[]): number {
-  return book.coversTags.filter((tag) => topTags.includes(tag)).length;
+function scoreOwnedBook(book: OwnedBook, topTags: string[]): number {
+  const categoryTags = CATEGORY_COVERS_TAGS[book.category] ?? [];
+  const tagHits = categoryTags.filter((t) => topTags.includes(t)).length;
+  const titleHits =
+    findKnownBook(book.title)?.coversTags.filter((t) => topTags.includes(t))
+      .length ?? 0;
+  return tagHits + titleHits;
 }
 
-function pickBooks(
-  topTags: string[],
-  ownedBookIds: string[],
-  limit: number
-): { owned: BookCatalogEntry[]; purchase: BookCatalogEntry[] } {
-  const scored = BOOK_CATALOG.map((book) => ({
-    book,
-    score: scoreBookForTags(book, topTags),
-  }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || Number(b.book.isFamous) - Number(a.book.isFamous));
-
-  const owned: BookCatalogEntry[] = [];
-  const purchase: BookCatalogEntry[] = [];
-
-  for (const { book } of scored) {
-    if (ownedBookIds.includes(book.id)) {
-      if (owned.length < limit) owned.push(book);
-    } else if (book.isFamous && purchase.length < limit) {
-      purchase.push(book);
-    }
-  }
-
-  return { owned, purchase };
-}
-
-function bookToSuggestion(
-  book: BookCatalogEntry,
-  topTag: string,
-  isOwned: boolean
-): BookSuggestion {
+function ownedBookToPick(book: OwnedBook, topTag: string): BookSuggestion {
   return {
-    bookId: book.id,
+    bookId: book.id ?? book.title,
     title: book.title,
-    studyAction: book.studyAction,
-    reason: isOwned
-      ? `弱点「${topTag}」に対し、手持ちの本から優先して取り組む`
-      : book.purchaseReason,
-    isOwned,
-    isPurchaseSuggestion: !isOwned,
+    studyAction: book.studyAction || DEFAULT_STUDY_ACTION[book.category],
+    reason: `弱点「${topTag}」に対し、手持ちの『${book.title}』を優先`,
+    isOwned: true,
+    isPurchaseSuggestion: false,
   };
+}
+
+function famousToPurchase(title: string, topTag: string): BookSuggestion | null {
+  const known = findKnownBook(title);
+  if (!known || !known.isFamous) return null;
+  return {
+    bookId: known.id,
+    title: known.titles[0],
+    studyAction: known.studyAction,
+    reason: known.purchaseReason,
+    isOwned: false,
+    isPurchaseSuggestion: true,
+  };
+}
+
+function booksForCategory(
+  ownedBooks: OwnedBook[],
+  category: BookCategory,
+  topTags: string[],
+  limit: number
+): OwnedBook[] {
+  return ownedBooks
+    .filter((b) => b.category === category)
+    .sort((a, b) => scoreOwnedBook(b, topTags) - scoreOwnedBook(a, topTags))
+    .slice(0, limit);
 }
 
 function buildAllocationReason(
   base: string,
-  books: BookCatalogEntry[],
-  ownedBookIds: string[]
+  books: OwnedBook[]
 ): string {
-  const owned = books.filter((b) => ownedBookIds.includes(b.id));
-  if (owned.length === 0) return base;
-  const titles = owned.map((b) => `『${b.title}』`).join("、");
-  return `${base} 手持ちの${titles}から、${owned[0].studyAction}。`;
+  if (books.length === 0) return base;
+  const first = books[0];
+  return `${base} 手持ちの『${first.title}』で、${first.studyAction || DEFAULT_STUDY_ACTION[first.category]}。`;
 }
 
 export function buildStudyMenu(
   records: GameRecordDetail[],
-  ownedBookIds: string[]
+  ownedBooks: OwnedBook[]
 ): StudyMenuResult | null {
   const tagStats = computeTagStats(records);
   if (tagStats.length === 0) return null;
@@ -96,18 +98,18 @@ export function buildStudyMenu(
   const strategyStats = computeMyStrategyStats(records);
   const topStrategy = strategyStats[0]?.strategy;
 
-  const { owned, purchase } = pickBooks(topTags, ownedBookIds, 3);
+  const ownedSorted = [...ownedBooks]
+    .sort((a, b) => scoreOwnedBook(b, topTags) - scoreOwnedBook(a, topTags));
 
-  const tsumeshogiBooks = BOOK_CATALOG.filter(
-    (b) =>
-      b.category === "tsumeshogi" &&
-      b.coversTags.some((t) => topTags.includes(t))
+  const tsumeshogiOwned = booksForCategory(
+    ownedBooks,
+    "tsumeshogi",
+    topTags,
+    1
   );
-  const midgameBooks = BOOK_CATALOG.filter(
-    (b) =>
-      b.category === "midgame" &&
-      b.coversTags.some((t) => topTags.includes(t))
-  );
+  const midgameOwned = booksForCategory(ownedBooks, "midgame", topTags, 2);
+  const endgameOwned = booksForCategory(ownedBooks, "endgame", topTags, 1);
+  const defenseOwned = booksForCategory(ownedBooks, "defense", topTags, 1);
 
   const allocations: StudyAllocation[] = [
     {
@@ -117,26 +119,23 @@ export function buildStudyMenu(
         `弱点タグ「${topTag}」が最多。${
           topStrategy ? `採用戦型は${topStrategy}。` : ""
         }中盤の判断と手筋を優先する。`,
-        midgameBooks,
-        ownedBookIds
+        midgameOwned.length > 0 ? midgameOwned : defenseOwned
       ),
-      books: midgameBooks
-        .filter((b) => ownedBookIds.includes(b.id))
-        .slice(0, 2)
-        .map((b) => ({
-          bookId: b.id,
+      books: (midgameOwned.length > 0 ? midgameOwned : defenseOwned).map(
+        (b) => ({
+          bookId: b.id ?? b.title,
           title: b.title,
-          studyAction: b.studyAction,
+          studyAction: b.studyAction || DEFAULT_STUDY_ACTION[b.category],
           isOwned: true,
-        })),
+        })
+      ),
     },
     {
       item: "実戦",
       percentage: 35,
       reason: buildAllocationReason(
-        "対局直後の振り返りとセットで弱点を定着させる。記録した敗因タグを意識して次の対局へ。",
-        owned.filter((b) => b.category === "opening"),
-        ownedBookIds
+        "対局直後の振り返りとセットで弱点を定着させる。",
+        booksForCategory(ownedBooks, "opening", topTags, 1)
       ),
     },
     {
@@ -145,35 +144,32 @@ export function buildStudyMenu(
       dailyCount: 5,
       reason: buildAllocationReason(
         "短い読みの維持。終盤の読み漏れ防止にもつながる。",
-        tsumeshogiBooks,
-        ownedBookIds
+        tsumeshogiOwned.length > 0 ? tsumeshogiOwned : endgameOwned
       ),
-      books: tsumeshogiBooks
-        .filter((b) => ownedBookIds.includes(b.id))
-        .slice(0, 1)
-        .map((b) => ({
-          bookId: b.id,
+      books: (tsumeshogiOwned.length > 0 ? tsumeshogiOwned : endgameOwned).map(
+        (b) => ({
+          bookId: b.id ?? b.title,
           title: b.title,
-          studyAction: b.studyAction,
+          studyAction: b.studyAction || DEFAULT_STUDY_ACTION[b.category],
           isOwned: true,
-        })),
+        })
+      ),
     },
   ];
 
-  const ownedBookPicks = owned.map((book) =>
-    bookToSuggestion(book, topTag, true)
-  );
-  const purchaseSuggestions = purchase.map((book) =>
-    bookToSuggestion(book, topTag, false)
-  );
+  const ownedBookPicks = ownedSorted.slice(0, 3).map((b) => ownedBookToPick(b, topTag));
 
-  // 定番書で弱点に直結するが未登録のものを購入推薦に追加
-  for (const famousId of ["gote-handbook", "yose-200"] as const) {
-    const book = getBookById(famousId);
-    if (!book || ownedBookIds.includes(book.id)) continue;
-    if (!book.coversTags.some((t) => topTags.includes(t))) continue;
-    if (purchaseSuggestions.some((s) => s.bookId === book.id)) continue;
-    purchaseSuggestions.push(bookToSuggestion(book, topTag, false));
+  const purchaseSuggestions: BookSuggestion[] = [];
+  const ownedTitles = new Set(ownedBooks.map((b) => b.title));
+
+  for (const famousId of FAMOUS_BOOK_IDS) {
+    const profile = getKnownBookById(famousId);
+    if (!profile) continue;
+    const displayTitle = profile.titles[0];
+    if (ownedTitles.has(displayTitle)) continue;
+    if (!profile.coversTags.some((t) => topTags.includes(t))) continue;
+    const suggestion = famousToPurchase(displayTitle, topTag);
+    if (suggestion) purchaseSuggestions.push(suggestion);
   }
 
   return {
