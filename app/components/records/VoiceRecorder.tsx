@@ -49,11 +49,70 @@ type RecorderState =
 type ProcessingStep = "transcribing" | "correcting" | "summarizing" | null;
 type RecordingSignal = "checking" | "receiving" | "warn-limit";
 
-function MicButtonIcon() {
+const SPEAKING_GUIDE_ITEMS = [
+  {
+    label: "対局形式・手合",
+    example: "例）棋の音・香落ち下手、将棋ウォーズ10切れ・後手",
+  },
+  { label: "相手の段位・級位", example: "例）会館初段、ウォーズ初段" },
+  { label: "勝ち負け", example: "例）負け、勝ち" },
+  { label: "戦型", example: "例）私は左美濃、相手は持久戦矢倉" },
+  { label: "問題局面までの流れ", example: "大まかな経緯" },
+  { label: "局面での判断とその理由", example: "" },
+  { label: "敗因・疑問手だった理由", example: "" },
+  { label: "最善手・改善手とその理由", example: "" },
+] as const;
+
+function MicButtonIcon({ size = "md" }: { size?: "md" | "sm" }) {
+  const iconClass = size === "sm" ? "h-6 w-6" : "h-9 w-9";
   return (
-    <svg viewBox="0 0 24 24" className="h-9 w-9 text-[var(--color-surface)]" fill="currentColor" aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      className={`${iconClass} text-[var(--color-surface)]`}
+      fill="currentColor"
+      aria-hidden
+    >
       <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20h2v-2.08A7 7 0 0 0 19 11h-2z" />
     </svg>
+  );
+}
+
+function SpeakingGuide({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className={`w-full max-w-sm rounded-lg bg-[var(--color-bg-sub)] ${
+        compact
+          ? "max-h-[min(42vh,320px)] overflow-y-auto p-3"
+          : "p-4"
+      }`}
+    >
+      <p
+        className={`mb-2 font-bold text-[var(--color-text)] ${
+          compact ? "text-xs" : "text-center text-sm"
+        }`}
+      >
+        この順番で話すと精度が上がります
+      </p>
+      <ol className={`space-y-1.5 ${compact ? "text-xs" : "space-y-2 text-sm"}`}>
+        {SPEAKING_GUIDE_ITEMS.map((item, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="min-w-[1.25rem] font-bold text-[var(--color-primary)]">
+              {i + 1}.
+            </span>
+            <span>
+              <span className="font-medium text-[var(--color-text)]">
+                {item.label}
+              </span>
+              {item.example && (
+                <span className="block text-[var(--color-text-sub)]">
+                  {item.example}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -867,22 +926,92 @@ export function VoiceRecorder() {
   const savedLiveRaw = cached?.liveRawTranscript?.trim();
   const displayLiveText = liveTranscript || interimTranscript;
 
+  const showGuide = !isProcessing;
+  const guideCompact = state === "recording" || state === "paused";
+
   return (
-    <div className="flex flex-col items-center gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-4 px-4 py-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 pt-1">
+          {state === "idle" && (
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              新しい対局を録音
+            </p>
+          )}
+          {state === "recording" && (
+            <div className="flex flex-col gap-1">
+              <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-danger)]">
+                <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-danger)]" />
+                録音中 {formatDuration(duration)}
+              </p>
+              <p
+                className={`text-xs ${
+                  recordingSignal === "receiving"
+                    ? "text-[var(--color-success)]"
+                    : recordingSignal === "warn-limit"
+                      ? "text-[var(--color-primary)]"
+                      : "text-[var(--color-text-sub)]"
+                }`}
+              >
+                {recordingSignal === "receiving"
+                  ? "音声を受信中"
+                  : recordingSignal === "warn-limit"
+                    ? "録音が長くなっています（目安5分）。まもなく自動で区切ります"
+                    : "マイクを確認しています…"}
+              </p>
+            </div>
+          )}
+          {state === "paused" && (
+            <p className="text-sm font-medium text-[var(--color-primary)]">
+              録音を一時停止（{segmentCount}区間）
+            </p>
+          )}
+          {isProcessing && (
+            <p className="text-sm font-medium text-[var(--color-text-sub)]">
+              {processingStep === "transcribing"
+                ? "音声を文字起こし中..."
+                : processingStep === "correcting"
+                  ? "将棋用語を補正中..."
+                  : "AIが要約を作成中..."}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleMicClick}
+          disabled={isProcessing}
+          aria-label={
+            state === "recording"
+              ? "録音を停止"
+              : state === "paused"
+                ? "続きを録音"
+                : "新しい対局を録音"
+          }
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-md transition-all ${
+            state === "recording"
+              ? "animate-pulse bg-[var(--color-danger)]"
+              : isProcessing
+                ? "bg-[var(--color-text-sub)]"
+                : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
+          }`}
+        >
+          <MicButtonIcon size="sm" />
+        </button>
+      </div>
+
+      {showGuide && <SpeakingGuide compact={guideCompact} />}
+
       {(state === "recording" || state === "paused") && (
-        <section className="flex w-full max-w-sm min-h-[200px] max-h-[min(50vh,360px)] flex-col gap-2 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-4 shadow-md">
+        <section className="flex min-h-[80px] max-h-[min(28vh,180px)] flex-col gap-2 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-3 shadow-md">
           <p className="text-xs font-semibold text-[var(--color-primary)]">
             {state === "paused"
               ? `文字起こし（${segmentCount}区間録音済み）`
-              : "文字起こし（話している間に表示されます）"}
+              : "文字起こし"}
           </p>
-          <div
-            ref={livePanelScrollRef}
-            className="flex-1 overflow-y-auto"
-          >
+          <div ref={livePanelScrollRef} className="flex-1 overflow-y-auto">
             {displayLiveText ? (
               <p
-                className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`text-xs leading-relaxed whitespace-pre-wrap ${
                   interimTranscript && !liveTranscript
                     ? "text-[var(--color-text-sub)]"
                     : "text-[var(--color-text)]"
@@ -891,12 +1020,12 @@ export function VoiceRecorder() {
                 {displayLiveText}
               </p>
             ) : (
-              <p className="text-sm text-[var(--color-text-sub)]">
+              <p className="text-xs text-[var(--color-text-sub)]">
                 話し始めると、ここに文字が表示されます…
               </p>
             )}
             {liveTranscribing && (
-              <p className="mt-2 text-xs text-[var(--color-primary)]">
+              <p className="mt-1 text-xs text-[var(--color-primary)]">
                 高精度の文字起こしを更新中…
               </p>
             )}
@@ -904,110 +1033,29 @@ export function VoiceRecorder() {
         </section>
       )}
 
-      {state === "idle" && (
-      <div className="w-full max-w-sm rounded-lg bg-[var(--color-bg-sub)] p-4">
-        <p className="mb-3 text-center text-sm font-bold text-[var(--color-text)]">
-          この順番で話すと精度が上がります
-        </p>
-        <ol className="space-y-2 text-sm">
-          {[
-            {
-              label: "対局形式・手合",
-              example: "例）棋の音・香落ち下手、将棋ウォーズ10切れ・後手",
-            },
-            { label: "相手の段位・級位", example: "例）会館初段、ウォーズ初段" },
-            { label: "勝ち負け", example: "例）負け、勝ち" },
-            { label: "戦型", example: "例）私は左美濃、相手は持久戦矢倉" },
-            { label: "問題局面までの流れ", example: "大まかな経緯" },
-            { label: "局面での判断とその理由", example: "" },
-            { label: "敗因・疑問手だった理由", example: "" },
-            { label: "最善手・改善手とその理由", example: "" },
-          ].map((item, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="min-w-[1.5rem] font-bold text-[var(--color-primary)]">
-                {i + 1}.
-              </span>
-              <span>
-                <span className="font-medium text-[var(--color-text)]">{item.label}</span>
-                {item.example && (
-                  <span className="block text-xs text-[var(--color-text-sub)]">{item.example}</span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
-      )}
-
       {hasCache && (
-        <p className="text-center text-xs font-medium text-[var(--color-primary)]">
-          下のマイクをタップして、新しい対局を録音できます
+        <p className="text-xs font-medium text-[var(--color-primary)]">
+          右上のマイクをタップして、新しい対局を録音できます
         </p>
       )}
 
       {isProcessing && (
-        <section className="flex w-full max-w-sm min-h-[120px] max-h-[min(40vh,240px)] flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+        <section className="flex min-h-[80px] max-h-[min(28vh,180px)] flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
           <p className="text-xs font-semibold text-[var(--color-text-sub)]">
             文字起こし
           </p>
           <div className="flex-1 overflow-y-auto">
             {liveTranscript ? (
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
+              <p className="text-xs leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
                 {liveTranscript}
               </p>
             ) : (
-              <p className="text-sm text-[var(--color-text-sub)]">
+              <p className="text-xs text-[var(--color-text-sub)]">
                 最終の文字起こしを処理しています…
               </p>
             )}
           </div>
         </section>
-      )}
-
-      <button
-        type="button"
-        onClick={handleMicClick}
-        disabled={isProcessing}
-        aria-label={
-          state === "recording"
-            ? "録音を停止して要約へ"
-            : state === "paused"
-              ? "続きを録音"
-              : "新しい対局を録音"
-        }
-        className={`flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all ${
-          state === "recording"
-            ? "animate-pulse bg-[var(--color-danger)]"
-            : isProcessing
-              ? "bg-[var(--color-text-sub)]"
-              : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
-        }`}
-      >
-        <MicButtonIcon />
-      </button>
-
-      {state === "recording" && (
-        <div className="flex w-full max-w-sm flex-col items-center gap-2">
-          <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-danger)]">
-            <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-danger)]" />
-            録音中 {formatDuration(duration)}
-          </p>
-          <p
-            className={`text-center text-xs ${
-              recordingSignal === "receiving"
-                ? "text-[var(--color-success)]"
-                : recordingSignal === "warn-limit"
-                  ? "text-[var(--color-primary)]"
-                  : "text-[var(--color-text-sub)]"
-            }`}
-          >
-            {recordingSignal === "receiving"
-              ? "音声を受信中"
-              : recordingSignal === "warn-limit"
-                ? "録音が長くなっています（目安5分）。まもなく自動で区切ります"
-                : "マイクを確認しています…"}
-          </p>
-        </div>
       )}
 
       {state === "paused" && (
@@ -1037,18 +1085,9 @@ export function VoiceRecorder() {
       )}
 
       {isProcessing && (
-        <div className="text-center text-sm text-[var(--color-text-sub)]">
-          <p className="font-medium">
-            {processingStep === "transcribing"
-              ? "音声を文字起こし中..."
-              : processingStep === "correcting"
-                ? "将棋用語を補正中..."
-                : "AIが要約を作成中..."}
-          </p>
-          <p className="mt-1 text-xs">
-            長い録音は分割して処理します（1〜2分ほどかかることがあります）
-          </p>
-        </div>
+        <p className="text-xs text-[var(--color-text-sub)]">
+          長い録音は分割して処理します（1〜2分ほどかかることがあります）
+        </p>
       )}
 
       {error && state !== "recording" && (
@@ -1058,8 +1097,8 @@ export function VoiceRecorder() {
       )}
 
       {state === "idle" && !error && (
-        <p className="text-center text-xs text-[var(--color-text-sub)]">
-          録音中は話した内容がリアルタイムで表示されます。6分を超える場合は自動で区切り、マイクをタップして続きを録音できます。完了したら「要約を作成する」へ進みます。
+        <p className="text-xs text-[var(--color-text-sub)]">
+          右上のマイクで録音を開始します。話した内容はガイドの下にリアルタイム表示されます。6分を超えると自動で区切り、マイクをタップして続きを録音できます。
         </p>
       )}
 
