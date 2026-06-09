@@ -137,3 +137,36 @@ export function countRecordsWithKishinInsight(
 ): number {
   return records.filter((r) => r.kishinInsight).length;
 }
+
+/** 棋神・口頭の弱点タグを合算（学習メニュー「両方」用） */
+export function computeCombinedTagStats(
+  records: GameRecordDetail[],
+  verbalTagStats: TagStat[]
+): TagStat[] {
+  const kishinStats = computeKishinTagStats(records);
+  const merged = new Map<string, TagStat>();
+
+  for (const stat of [...kishinStats, ...verbalTagStats]) {
+    const prev = merged.get(stat.tag);
+    if (!prev) {
+      merged.set(stat.tag, { ...stat });
+      continue;
+    }
+    merged.set(stat.tag, {
+      tag: stat.tag,
+      count: prev.count + stat.count,
+      percentage: 0,
+      latestRecordId: stat.latestRecordId ?? prev.latestRecordId,
+    });
+  }
+
+  const total = [...merged.values()].reduce((sum, v) => sum + v.count, 0);
+  if (total === 0) return [];
+
+  return [...merged.values()]
+    .map((stat) => ({
+      ...stat,
+      percentage: Math.round((stat.count / total) * 100),
+    }))
+    .sort((a, b) => b.count - a.count);
+}

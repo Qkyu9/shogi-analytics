@@ -28,6 +28,8 @@ export type KishinTurningPoint = {
 export type KishinInsight = {
   briefSummaries: string[];
   turningPoints: KishinTurningPoint[];
+  /** 音声入力の手番・勝敗を反映して生成したか（旧データの再生成判定用） */
+  playerPerspectiveApplied?: boolean;
 };
 
 export type GameRecordDraft = {
@@ -68,6 +70,8 @@ export type GameRecordSummary = {
   hasVoiceInput: boolean;
   /** 棋譜データ（棋神示唆含む）あり */
   hasKifuData: boolean;
+  /** 棋譜データから抽出した弱点タグ（一覧表示用） */
+  insightTags: string[];
 };
 
 export type GameRecordDetail = GameRecordSummary & {

@@ -112,15 +112,24 @@ export function RecordPreviewForm({
 
       const kifuChanged =
         kifuText !== (initialData.kifuText?.trim() ?? "");
+      const contextChanged =
+        resolved.playerSide !== (initialData.playerSide ?? null) ||
+        draft.result !== initialData.result;
       const shouldGenerateKishin =
         Boolean(kifuText) &&
-        (mode === "create" || kifuChanged || !initialData.kishinInsight);
+        (mode === "create" ||
+          kifuChanged ||
+          contextChanged ||
+          !initialData.kishinInsight);
 
       if (shouldGenerateKishin) {
         setGeneratingKishin(true);
         setSaveStatus("棋神からの示唆を生成しています…");
         try {
-          kishinInsight = await generateKishinInsight(kifuText);
+          kishinInsight = await generateKishinInsight(kifuText, {
+            playerSide: resolved.playerSide,
+            result: draft.result,
+          });
         } catch {
           // 生成失敗時は既存の示唆を維持（口頭要約は保存を続行）
           kishinInsight = initialData.kishinInsight ?? draft.kishinInsight;

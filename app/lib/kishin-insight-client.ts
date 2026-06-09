@@ -1,12 +1,14 @@
+import type { KifuAnalysisContext } from "@/app/lib/kifu-player-context";
 import type { KishinInsight } from "./types";
 
 export async function generateKishinInsight(
-  kifuText: string
+  kifuText: string,
+  context: KifuAnalysisContext = { playerSide: null, result: null }
 ): Promise<KishinInsight> {
   const res = await fetch("/api/summarize-kifu", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kifuText }),
+    body: JSON.stringify({ kifuText, ...context }),
   });
 
   const data = (await res.json()) as {

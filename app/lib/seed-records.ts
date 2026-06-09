@@ -20,6 +20,7 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     positionCount: 3,
     hasVoiceInput: true,
     hasKifuData: false,
+    insightTags: [],
     positions: [
       {
         sortOrder: 0,

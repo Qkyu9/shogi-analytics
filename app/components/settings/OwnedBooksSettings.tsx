@@ -15,6 +15,7 @@ import {
 } from "@/app/lib/owned-books-storage";
 import { Button } from "@/app/components/ui/Button";
 import { Card } from "@/app/components/ui/Card";
+import { CollapsibleSection } from "@/app/components/ui/CollapsibleSection";
 
 type DraftBook = OwnedBook & { sourceNote?: string };
 
@@ -154,68 +155,80 @@ export function OwnedBooksSettings() {
               まだ棋書が登録されていません。上の欄に書名を入力して「追加」をタップしてください。
             </p>
           ) : (
-            <div className="flex flex-col gap-4">
-              {grouped.map(({ category, items }) => (
-                <div key={category}>
-                  <p className="mb-2 text-xs font-semibold text-[var(--color-primary)]">
-                    {BOOK_CATEGORY_LABELS[category]}
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {items.map(({ book, index }) => (
-                      <li
-                        key={`${book.title}-${index}`}
-                        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-[var(--color-text)]">
-                            {book.title}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => removeBook(index)}
-                            className="shrink-0 text-xs text-[var(--color-text-sub)] underline"
-                          >
-                            削除
-                          </button>
-                        </div>
-                        <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-                          {book.studyAction}
-                        </p>
-                        <label className="mt-2 flex items-center gap-2 text-xs">
-                          <span className="text-[var(--color-text-sub)]">種類:</span>
-                          <select
-                            value={book.category}
-                            onChange={(e) =>
-                              updateCategory(
-                                index,
-                                e.target.value as BookCategory
-                              )
-                            }
-                            className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1"
-                          >
-                            {BOOK_CATEGORY_OPTIONS.map((cat) => (
-                              <option key={cat} value={cat}>
-                                {BOOK_CATEGORY_LABELS[cat]}
-                              </option>
-                            ))}
-                          </select>
-                          {!book.autoClassified && (
-                            <span className="text-[var(--color-primary)]">
-                              手動修正済
-                            </span>
-                          )}
-                        </label>
-                        {book.sourceNote && book.autoClassified && (
+            <CollapsibleSection
+              title={`登録済みの棋書（${books.length}冊）`}
+              preview={grouped
+                .map(
+                  (g) =>
+                    `${BOOK_CATEGORY_LABELS[g.category]} ${g.items.length}冊`
+                )
+                .join("、")}
+            >
+              <div className="flex flex-col gap-4">
+                {grouped.map(({ category, items }) => (
+                  <div key={category}>
+                    <p className="mb-2 text-xs font-semibold text-[var(--color-primary)]">
+                      {BOOK_CATEGORY_LABELS[category]}
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                      {items.map(({ book, index }) => (
+                        <li
+                          key={`${book.title}-${index}`}
+                          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-[var(--color-text)]">
+                              {book.title}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeBook(index)}
+                              className="shrink-0 text-xs text-[var(--color-text-sub)] underline"
+                            >
+                              削除
+                            </button>
+                          </div>
                           <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-                            判別: {book.sourceNote}
+                            {book.studyAction}
                           </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+                          <label className="mt-2 flex items-center gap-2 text-xs">
+                            <span className="text-[var(--color-text-sub)]">
+                              種類:
+                            </span>
+                            <select
+                              value={book.category}
+                              onChange={(e) =>
+                                updateCategory(
+                                  index,
+                                  e.target.value as BookCategory
+                                )
+                              }
+                              className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1"
+                            >
+                              {BOOK_CATEGORY_OPTIONS.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {BOOK_CATEGORY_LABELS[cat]}
+                                </option>
+                              ))}
+                            </select>
+                            {!book.autoClassified && (
+                              <span className="text-[var(--color-primary)]">
+                                手動修正済
+                              </span>
+                            )}
+                          </label>
+                          {book.sourceNote && book.autoClassified && (
+                            <p className="mt-1 text-xs text-[var(--color-text-sub)]">
+                              判別: {book.sourceNote}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
           )}
 
           {error && (

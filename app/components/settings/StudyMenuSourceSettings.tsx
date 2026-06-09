@@ -10,7 +10,14 @@ import {
   type StudyMenuDataSource,
 } from "@/app/lib/study-menu-settings";
 
-const OPTIONS: StudyMenuDataSource[] = ["kishin", "verbal"];
+const OPTIONS: StudyMenuDataSource[] = ["kishin", "verbal", "both"];
+
+const OPTION_DESCRIPTIONS: Record<StudyMenuDataSource, string> = {
+  kishin:
+    "棋神アナリティクスの評価・候補手から抽出した示唆をもとに提案します。",
+  verbal: "口頭振り返りの要約と敗因タグをもとに提案します。",
+  both: "棋神からの示唆と口頭要約の両方を組み合わせて提案します。",
+};
 
 export function StudyMenuSourceSettings() {
   const [source, setSource] = useState<StudyMenuDataSource>(() =>
@@ -28,7 +35,7 @@ export function StudyMenuSourceSettings() {
     <Card>
       <h2 className="text-sm font-semibold">学習メニューの参照元</h2>
       <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-sub)]">
-        学習メニューの弱点分析に、どちらのデータを使うか選べます。標準は棋神からの示唆です。
+        学習メニューの弱点分析に使うデータを選べます。標準は棋神からの示唆です。
       </p>
       <div className="mt-3 flex flex-col gap-2">
         {OPTIONS.map((value) => (
@@ -58,9 +65,7 @@ export function StudyMenuSourceSettings() {
                 )}
               </span>
               <span className="mt-0.5 block text-xs text-[var(--color-text-sub)]">
-                {value === "kishin"
-                  ? "棋神アナリティクスの評価・候補手から抽出した示唆をもとに提案します。"
-                  : "口頭振り返りの要約と敗因タグをもとに提案します。"}
+                {OPTION_DESCRIPTIONS[value]}
               </span>
             </span>
           </label>

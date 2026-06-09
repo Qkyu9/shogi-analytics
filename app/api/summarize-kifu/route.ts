@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
+import type { PlayerSide } from "@/app/lib/handicap";
+import type { KifuAnalysisContext } from "@/app/lib/kifu-player-context";
 import { trimKifuForAnalysis } from "@/app/lib/kifu-text-trim";
 import {
   SUMMARIZE_KIFU_SYSTEM_PROMPT,
   SUMMARIZE_KIFU_USER_PROMPT,
 } from "@/app/lib/prompts/summarize-kifu";
+import type { GameResult, KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
 type SummarizeKifuRequest = {
   kifuText: string;
+  playerSide?: PlayerSide | null;
+  result?: GameResult | null;
 };
 
 type RawKishinInsight = {
@@ -22,7 +26,10 @@ function extractJson(text: string): RawKishinInsight {
   return JSON.parse(jsonText) as RawKishinInsight;
 }
 
-function normalizeInsight(raw: RawKishinInsight): KishinInsight {
+function normalizeInsight(
+  raw: RawKishinInsight,
+  context: KifuAnalysisContext
+): KishinInsight {
   const briefSummaries = (raw.briefSummaries ?? [])
     .map((s) => s.trim())
     .filter(Boolean)
@@ -43,10 +50,32 @@ function normalizeInsight(raw: RawKishinInsight): KishinInsight {
     }))
     .filter((tp) => tp.insight || tp.evalChange || tp.topCandidate);
 
-  return { briefSummaries, turningPoints };
+  return {
+    briefSummaries,
+    turningPoints,
+    playerPerspectiveApplied: context.playerSide != null,
+  };
 }
 
-async function callClaude(apiKey: string, kifuText: string): Promise<string> {
+function parseAnalysisContext(
+  body: SummarizeKifuRequest
+): KifuAnalysisContext {
+  const playerSide =
+    body.playerSide === "sente" || body.playerSide === "gote"
+      ? body.playerSide
+      : null;
+  const result =
+    body.result === "win" || body.result === "loss" || body.result === "draw"
+      ? body.result
+      : null;
+  return { playerSide, result };
+}
+
+async function callClaude(
+  apiKey: string,
+  kifuText: string,
+  context: KifuAnalysisContext
+): Promise<string> {
   const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514";
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -60,7 +89,7 @@ async function callClaude(apiKey: string, kifuText: string): Promise<string> {
       max_tokens: 4096,
       system: SUMMARIZE_KIFU_SYSTEM_PROMPT,
       messages: [
-        { role: "user", content: SUMMARIZE_KIFU_USER_PROMPT(kifuText) },
+        { role: "user", content: SUMMARIZE_KIFU_USER_PROMPT(kifuText, context) },
       ],
     }),
   });
@@ -79,7 +108,11 @@ async function callClaude(apiKey: string, kifuText: string): Promise<string> {
   return text;
 }
 
-async function callOpenAI(apiKey: string, kifuText: string): Promise<string> {
+async function callOpenAI(
+  apiKey: string,
+  kifuText: string,
+  context: KifuAnalysisContext
+): Promise<string> {
   const model = process.env.OPENAI_SUMMARIZE_MODEL ?? "gpt-4o";
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -93,7 +126,7 @@ async function callOpenAI(apiKey: string, kifuText: string): Promise<string> {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SUMMARIZE_KIFU_SYSTEM_PROMPT },
-        { role: "user", content: SUMMARIZE_KIFU_USER_PROMPT(kifuText) },
+        { role: "user", content: SUMMARIZE_KIFU_USER_PROMPT(kifuText, context) },
       ],
     }),
   });
@@ -138,12 +171,13 @@ export async function POST(request: NextRequest) {
     }
 
     const trimmedKifu = trimKifuForAnalysis(kifuText);
+    const context = parseAnalysisContext(body);
     const summaryText = anthropicKey
-      ? await callClaude(anthropicKey, trimmedKifu)
-      : await callOpenAI(openaiKey!, trimmedKifu);
+      ? await callClaude(anthropicKey, trimmedKifu, context)
+      : await callOpenAI(openaiKey!, trimmedKifu, context);
 
     const raw = extractJson(summaryText);
-    const insight = normalizeInsight(raw);
+    const insight = normalizeInsight(raw, context);
 
     const hasContent =
       insight.briefSummaries.some(Boolean) || insight.turningPoints.length > 0;

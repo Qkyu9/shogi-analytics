@@ -5,7 +5,7 @@ import { TagChip } from "@/app/components/ui/TagChip";
 
 function InputMethodTag({ label }: { label: string }) {
   return (
-    <span className="inline-flex rounded-full bg-[var(--color-bg-sub)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-sub)]">
+    <span className="inline-flex items-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-sub)]">
       {label}
     </span>
   );
@@ -34,9 +34,9 @@ export function RecordCard({ record }: { record: GameRecordSummary }) {
         <p className="mt-0.5 text-xs text-[var(--color-text-sub)]">
           {record.venueLabel}
         </p>
-        {record.tags.length > 0 && (
+        {record.insightTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {record.tags.slice(0, 2).map((tag) => (
+            {record.insightTags.map((tag) => (
               <TagChip key={tag} label={tag} />
             ))}
           </div>

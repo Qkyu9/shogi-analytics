@@ -39,11 +39,19 @@ export function RecordDetailView({ id }: { id: string }) {
       .catch(() => router.replace("/records"));
   }, [id, router]);
 
-  // 棋譜あり・示唆なしの既存記録は自動生成してDBに保存（1回だけ）
+  // 棋譜ありで示唆が未生成、または手番反映前の旧示唆がある記録は自動生成（1回だけ）
   useEffect(() => {
     if (!ready || !record) return;
     const kifu = record.kifuText?.trim();
-    if (!kifu || record.kishinInsight) return;
+    if (!kifu) return;
+
+    const needsBackfill = !record.kishinInsight;
+    const needsPerspectiveRefresh =
+      Boolean(record.kishinInsight) &&
+      Boolean(record.playerSide) &&
+      !record.kishinInsight?.playerPerspectiveApplied;
+
+    if (!needsBackfill && !needsPerspectiveRefresh) return;
     if (backfillStartedRef.current) return;
     backfillStartedRef.current = true;
 
@@ -52,7 +60,10 @@ export function RecordDetailView({ id }: { id: string }) {
 
     (async () => {
       try {
-        const insight = await generateKishinInsight(kifu);
+        const insight = await generateKishinInsight(kifu, {
+          playerSide: record.playerSide,
+          result: record.result,
+        });
         const updated = await updateRecord(record.id, {
           ...detailToDraft(record),
           kishinInsight: insight,

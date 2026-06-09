@@ -79,6 +79,9 @@ export function StudyMenuView() {
     } else if (recordCount > 0 && dataSource === "verbal") {
       message =
         "口頭要約の敗因タグがまだありません。対局記録の振り返りを追加してください。";
+    } else if (recordCount > 0 && dataSource === "both") {
+      message =
+        "棋神からの示唆と口頭要約のどちらからも弱点タグを抽出できません。棋譜や振り返りを追加してください。";
     }
 
     return (

@@ -10,6 +10,7 @@ import {
   findKnownBook,
 } from "@/app/lib/known-books";
 import {
+  computeCombinedTagStats,
   computeKishinTagStats,
   getKishinHighlight,
 } from "@/app/lib/kishin-tag-extraction";
@@ -102,10 +103,13 @@ export function buildStudyMenu(
   options?: { dataSource?: StudyMenuDataSource }
 ): StudyMenuResult | null {
   const dataSource = options?.dataSource ?? DEFAULT_STUDY_MENU_SOURCE;
+  const verbalTagStats = computeTagStats(records);
   const tagStats =
     dataSource === "kishin"
       ? computeKishinTagStats(records)
-      : computeTagStats(records);
+      : dataSource === "verbal"
+        ? verbalTagStats
+        : computeCombinedTagStats(records, verbalTagStats);
   if (tagStats.length === 0) return null;
 
   const topTags = tagStats.slice(0, 3).map((s) => s.tag);
@@ -113,9 +117,15 @@ export function buildStudyMenu(
   const strategyStats = computeMyStrategyStats(records);
   const topStrategy = strategyStats[0]?.strategy;
   const kishinHighlight =
-    dataSource === "kishin" ? getKishinHighlight(records) : null;
+    dataSource === "kishin" || dataSource === "both"
+      ? getKishinHighlight(records)
+      : null;
   const sourceNote =
-    dataSource === "kishin" ? "棋神からの示唆" : "口頭要約の弱点タグ";
+    dataSource === "kishin"
+      ? "棋神からの示唆"
+      : dataSource === "verbal"
+        ? "口頭要約の弱点タグ"
+        : "棋神からの示唆と口頭要約";
 
   const ownedSorted = [...ownedBooks]
     .sort((a, b) => scoreOwnedBook(b, topTags) - scoreOwnedBook(a, topTags));
@@ -135,7 +145,7 @@ export function buildStudyMenu(
       item: "中盤手筋",
       percentage: 40,
       reason: buildAllocationReason(
-        dataSource === "kishin" && kishinHighlight
+        (dataSource === "kishin" || dataSource === "both") && kishinHighlight
           ? `${sourceNote}より「${topTag}」が重点。${kishinHighlight}`
           : `${sourceNote}より弱点「${topTag}」が最多。${
               topStrategy ? `採用戦型は${topStrategy}。` : ""

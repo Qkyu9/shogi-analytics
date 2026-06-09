@@ -1,10 +1,13 @@
 import { MIGI_GYOKU_STRATEGY_GUIDE } from "@/app/lib/migi-gyoku-strategy";
 import { SHOGI_REFLECTION_KNOWLEDGE } from "./shogi-reflection-knowledge";
+import { VERBAL_NOTATION_GUIDE } from "./verbal-notation-guide";
 
 export const SUMMARIZE_SYSTEM_PROMPT = `あなたは将棋の対局振り返りを構造化するアシスタントです。
 ユーザーが音声で話した内容を、議事録のような逐語録にはせず、後から読み返して学習に使える要約に整形してください。
 
 ${SHOGI_REFLECTION_KNOWLEDGE}
+
+${VERBAL_NOTATION_GUIDE}
 
 ## 出力ルール
 - 必ず JSON のみを返す（説明文やマークダウンは不要）
@@ -30,6 +33,7 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 
 ### correctMove（正着）
 - 手または判断と理由。短く。成りは「成」
+- 座標を書くときは VERBAL_NOTATION_GUIDE に従い、後手局なら後手目線に直す
 
 ### lesson（教訓）
 - 次に覚えること・判断軸。1文が理想
@@ -61,6 +65,7 @@ export const SUMMARIZE_USER_PROMPT = (
 話者は「対局形式・手合 → 相手の段位・級位 → 勝ち負け → 戦型 → …」の順で話すことが多い。
 **対局形式（venueType）と手合（handicap）は必ず分けて記載する。** 棋の音・将棋ウォーズ10切れなどは venueType のみ。香落ち下手・後手・平手・角落ち上手などは handicap のみ（対局形式名は入れない）。
 駒落ちでは上手が先手になる（将棋のルール）。下手なら後手、上手なら先手。playerSide は話されていれば sente/gote、駒落ちで下手/上手のみならそこから推測してよい。
+**playerSide を先に確定してから** positions を書くこと。後手（gote）なら、話者が先手目線で言った座標（例: 九九）を後手目線（例: 1一）に直して要約する。
 勝ち・負けどちらでも myStrategy / opponentStrategy は必ず埋めること。相手の段位・級位は opponentRank に分けて入れる（戦型と混ぜない）。
 ドメイン知識の「悪い要約例」に近い書き方は避け、「良い要約例」の論点を反映してください。
 
