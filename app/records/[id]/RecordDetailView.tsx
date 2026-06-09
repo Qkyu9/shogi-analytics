@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { KishinInsightView } from "@/app/components/records/KishinInsightView";
 import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
@@ -11,11 +12,14 @@ import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 import { formatDateTime, resultLabel } from "@/app/lib/utils";
 
+type DetailTab = "verbal" | "kishin";
+
 export function RecordDetailView({ id }: { id: string }) {
   const router = useRouter();
   const [record, setRecord] = useState<GameRecordDetail | null>(null);
   const [ready, setReady] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>("verbal");
 
   useEffect(() => {
     getRecordDetail(id)
@@ -91,43 +95,86 @@ export function RecordDetailView({ id }: { id: string }) {
         <SourceInputCollapsible text={record.sourceInputText} />
       )}
 
-      {record.positions.map((pos, index) => (
-        <section
-          key={pos.sortOrder}
-          className="rounded-xl bg-[var(--color-surface)] p-4"
-        >
-          <h2 className="text-sm font-semibold">局面 {index + 1}</h2>
-          <dl className="mt-3 flex flex-col gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-[var(--color-text-sub)]">
-                印象に残った局面
-              </dt>
-              <dd className="mt-1 whitespace-pre-wrap">{pos.sceneDescription}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-[var(--color-text-sub)]">敗因・疑問手</dt>
-              <dd className="mt-1 whitespace-pre-wrap">{pos.defeatCause}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-[var(--color-text-sub)]">正着</dt>
-              <dd className="mt-1 whitespace-pre-wrap">{pos.correctMove}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-[var(--color-text-sub)]">教訓</dt>
-              <dd className="mt-1 whitespace-pre-wrap">{pos.lesson}</dd>
-            </div>
-          </dl>
-        </section>
-      ))}
+      <section>
+        <div className="flex rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("verbal")}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+              activeTab === "verbal"
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-sub)]"
+            }`}
+          >
+            口頭要約
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("kishin")}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+              activeTab === "kishin"
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-sub)]"
+            }`}
+          >
+            棋神からの示唆
+          </button>
+        </div>
 
-      {record.kifuText && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">棋譜</h2>
-          <pre className="overflow-x-auto rounded-xl bg-[var(--color-bg-sub)] p-3 font-mono text-xs whitespace-pre-wrap">
-            {record.kifuText}
-          </pre>
-        </section>
-      )}
+        <div className="mt-4">
+          {activeTab === "verbal" && (
+            <div className="flex flex-col gap-4">
+              {record.positions.map((pos, index) => (
+                <section
+                  key={pos.sortOrder}
+                  className="rounded-xl bg-[var(--color-surface)] p-4"
+                >
+                  <h2 className="text-sm font-semibold">局面 {index + 1}</h2>
+                  <dl className="mt-3 flex flex-col gap-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-sub)]">
+                        印象に残った局面
+                      </dt>
+                      <dd className="mt-1 whitespace-pre-wrap">
+                        {pos.sceneDescription}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-sub)]">
+                        敗因・疑問手
+                      </dt>
+                      <dd className="mt-1 whitespace-pre-wrap">
+                        {pos.defeatCause}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-sub)]">
+                        正着
+                      </dt>
+                      <dd className="mt-1 whitespace-pre-wrap">
+                        {pos.correctMove}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-sub)]">
+                        教訓
+                      </dt>
+                      <dd className="mt-1 whitespace-pre-wrap">{pos.lesson}</dd>
+                    </div>
+                  </dl>
+                </section>
+              ))}
+            </div>
+          )}
+
+          {activeTab === "kishin" && (
+            <KishinInsightView
+              kifuText={record.kifuText}
+              insight={record.kishinInsight}
+            />
+          )}
+        </div>
+      </section>
 
       <Link href={`/records/${record.id}/edit`} className="block">
         <Button fullWidth>この記録を編集</Button>

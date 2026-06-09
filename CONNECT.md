@@ -36,6 +36,7 @@
    - `supabase/migrations/20250608_handicap.sql`（手合・先手/後手列の追加。既存DBにも実行）
    - `supabase/migrations/20250608_user_owned_books.sql`（購入済み棋書の登録テーブル。既存DBにも実行）
    - `supabase/migrations/20250608_user_owned_books_v2.sql`（書名・カテゴリ列の追加。v1実行済みDBにも実行）
+   - `supabase/migrations/20250609_kishin_insight.sql`（棋神からの示唆 JSON 列の追加。既存DBにも実行）
 3. 左メニュー **Table Editor** で `users` と `game_records` ができているか確認
 
 ### 1-3. API キーを控える

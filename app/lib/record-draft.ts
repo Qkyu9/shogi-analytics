@@ -20,6 +20,7 @@ export function detailToDraft(record: GameRecordDetail): GameRecordDraft {
     ),
     tags: record.tags,
     kifuText: record.kifuText,
+    kishinInsight: record.kishinInsight,
     sourceInputText: record.sourceInputText,
   };
 }

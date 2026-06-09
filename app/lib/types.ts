@@ -15,6 +15,21 @@ export type GamePosition = {
   lesson: string;
 };
 
+/** 棋神アナリティクスの評価・候補手から抽出した一局の要所 */
+export type KishinTurningPoint = {
+  moveNumber: number;
+  move: string;
+  evalChange: string;
+  topCandidate: string;
+  insight: string;
+};
+
+/** 棋神からの示唆（口頭要約とは独立） */
+export type KishinInsight = {
+  briefSummaries: string[];
+  turningPoints: KishinTurningPoint[];
+};
+
 export type GameRecordDraft = {
   playedAt: string;
   venueType: VenueType;
@@ -30,6 +45,8 @@ export type GameRecordDraft = {
   positions: GamePosition[];
   tags: string[];
   kifuText?: string;
+  /** 棋神アナリティクス棋譜から生成した示唆 */
+  kishinInsight?: KishinInsight;
   /** 音声STTまたは外部貼り付けの元テキスト（補正・要約前） */
   sourceInputText?: string;
 };
@@ -52,6 +69,7 @@ export type GameRecordSummary = {
 export type GameRecordDetail = GameRecordSummary & {
   positions: (GamePosition & { sortOrder: number })[];
   kifuText?: string;
+  kishinInsight?: KishinInsight;
   sourceInputText?: string;
 };
 

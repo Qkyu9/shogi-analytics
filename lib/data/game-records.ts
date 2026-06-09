@@ -3,6 +3,7 @@ import type {
   GameRecordDraft,
   GameRecordSummary,
   GamePosition,
+  KishinInsight,
   VenueType,
 } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
@@ -51,6 +52,7 @@ type DbRecord = {
   opponent_rank: string;
   tags: string[];
   kifu_text: string | null;
+  kishin_insight: KishinInsight | null;
   source_input_text: string | null;
   game_positions: Array<{
     sort_order: number;
@@ -92,6 +94,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
     positionCount: positions.length,
     positions,
     kifuText: row.kifu_text ?? undefined,
+    kishinInsight: row.kishin_insight ?? undefined,
     sourceInputText: row.source_input_text ?? undefined,
   };
 }
@@ -108,6 +111,7 @@ const recordSelect = `
   opponent_rank,
   tags,
   kifu_text,
+  kishin_insight,
   source_input_text,
   game_positions (
     sort_order,
@@ -196,6 +200,7 @@ export async function insertGameRecord(
       opponent_rank: (draft.opponentRank ?? "").trim(),
       tags: draft.tags,
       kifu_text: draft.kifuText?.trim() || null,
+      kishin_insight: draft.kishinInsight ?? null,
       source_input_text: draft.sourceInputText?.trim() || null,
     })
     .select("id")
@@ -279,6 +284,7 @@ export async function updateGameRecord(
       opponent_rank: (draft.opponentRank ?? "").trim(),
       tags: draft.tags,
       kifu_text: draft.kifuText?.trim() || null,
+      kishin_insight: draft.kishinInsight ?? null,
       source_input_text: draft.sourceInputText?.trim() || null,
       updated_at: new Date().toISOString(),
     })
@@ -369,6 +375,7 @@ export async function migrateGameRecords(
       ),
       tags: record.tags,
       kifuText: record.kifuText,
+      kishinInsight: record.kishinInsight,
     };
     await insertGameRecord(userId, draft);
     imported += 1;

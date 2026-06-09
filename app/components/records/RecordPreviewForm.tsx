@@ -6,6 +6,8 @@ import { clearDraft } from "@/app/lib/draft-storage";
 import { clearTranscriptCache } from "@/app/lib/transcript-cache";
 import { saveRecord, updateRecord } from "@/app/lib/record-storage";
 import { Button } from "@/app/components/ui/Button";
+import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
+import { FieldVoiceInput } from "./FieldVoiceInput";
 import { KifuPasteArea } from "./KifuPasteArea";
 import { SourceInputCollapsible } from "./SourceInputCollapsible";
 import { TagInput } from "./TagInput";
@@ -61,6 +63,8 @@ export function RecordPreviewForm({
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [generatingKishin, setGeneratingKishin] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const resolvedSourceInput =
     sourceInputText?.trim() ||
     draft.sourceInputText?.trim() ||
@@ -100,13 +104,38 @@ export function RecordPreviewForm({
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveStatus(null);
     try {
       const resolved = resolveHandicapFields(draft.handicap, draft.playerSide);
+      let kishinInsight = draft.kishinInsight;
+      const kifuText = draft.kifuText?.trim() ?? "";
+
+      const kifuChanged =
+        kifuText !== (initialData.kifuText?.trim() ?? "");
+      const shouldGenerateKishin =
+        kifuText && (kifuChanged || !draft.kishinInsight);
+
+      if (shouldGenerateKishin) {
+        setGeneratingKishin(true);
+        setSaveStatus("棋神からの示唆を生成しています…");
+        try {
+          kishinInsight = await generateKishinInsight(kifuText);
+        } catch {
+          // 棋神示唆の生成失敗時も口頭要約は保存する
+          kishinInsight = draft.kishinInsight;
+        } finally {
+          setGeneratingKishin(false);
+        }
+      } else if (!kifuText) {
+        kishinInsight = undefined;
+      }
+
       const payload: GameRecordDraft = {
         ...draft,
         handicap: resolved.handicap,
         playerSide: resolved.playerSide,
         sourceInputText: resolvedSourceInput || draft.sourceInputText,
+        kishinInsight,
       };
 
       if (mode === "edit" && recordId) {
@@ -123,6 +152,7 @@ export function RecordPreviewForm({
       router.push("/records");
     } catch {
       setSaving(false);
+      setSaveStatus(null);
     }
   };
 
@@ -133,18 +163,20 @@ export function RecordPreviewForm({
     else router.push("/");
   };
 
-  const saveLabel = saving
-    ? "保存中..."
-    : mode === "edit"
-      ? "変更を保存"
-      : "保存する";
+  const saveLabel = generatingKishin
+    ? "棋神示唆を生成中..."
+    : saving
+      ? "保存中..."
+      : mode === "edit"
+        ? "変更を保存"
+        : "保存する";
 
   const actionButtons = (
     <>
       <Button variant="secondary" onClick={handleDiscard}>
         {mode === "edit" ? "キャンセル" : "破棄"}
       </Button>
-      <Button fullWidth onClick={handleSave} disabled={saving}>
+      <Button fullWidth onClick={handleSave} disabled={saving || generatingKishin}>
         {saveLabel}
       </Button>
     </>
@@ -158,14 +190,20 @@ export function RecordPreviewForm({
         </div>
       )}
 
+      {saveStatus && (
+        <div className="rounded-lg bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-sub)]">
+          {saveStatus}
+        </div>
+      )}
+
       {resolvedSourceInput && (
         <SourceInputCollapsible text={resolvedSourceInput} />
       )}
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
         {mode === "edit"
-          ? "保存済みの記録を編集できます。修正後は下にスクロールして「変更を保存」をタップしてください。"
-          : "AIが要約した内容です。話した詳細と違う場合は、そのまま編集して保存できます。あとから記録詳細画面でも編集できます。"}
+          ? "保存済みの記録を編集できます。各欄のマイクで音声入力もできます。棋譜を変更して保存すると、棋神からの示唆も再生成されます。"
+          : "AIが要約した内容です。タイピングまたは各欄のマイクで修正して保存できます。棋譜を貼り付けると、保存時に棋神からの示唆も自動生成されます。"}
       </p>
 
       <section className="flex flex-col gap-3">
@@ -295,11 +333,11 @@ export function RecordPreviewForm({
                   </span>
                 )}
               </label>
-              <textarea
+              <FieldVoiceInput
                 value={pos[field]}
-                onChange={(e) => updatePosition(index, field, e.target.value)}
+                onChange={(v) => updatePosition(index, field, v)}
                 rows={FIELD_ROWS[field] ?? 3}
-                className="mt-1 w-full rounded-lg border border-[var(--color-border)] p-2 text-sm leading-relaxed"
+                className="mt-1"
               />
             </div>
           ))}
