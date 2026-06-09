@@ -9,6 +9,10 @@ import { Button } from "@/app/components/ui/Button";
 import { KifuPasteArea } from "./KifuPasteArea";
 import { SourceInputCollapsible } from "./SourceInputCollapsible";
 import { TagInput } from "./TagInput";
+import {
+  PLAYER_SIDE_LABELS,
+  resolveHandicapFields,
+} from "@/app/lib/handicap";
 import type { GameRecordDraft, GamePosition } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
 import { fromDatetimeLocalJst, toDatetimeLocalJst } from "@/app/lib/utils";
@@ -52,6 +56,8 @@ export function RecordPreviewForm({
   const [draft, setDraft] = useState<GameRecordDraft>({
     ...initialData,
     opponentRank: initialData.opponentRank ?? "",
+    handicap: initialData.handicap ?? "",
+    playerSide: initialData.playerSide ?? null,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -83,11 +89,23 @@ export function RecordPreviewForm({
     }));
   };
 
+  const updateHandicap = (value: string) => {
+    const resolved = resolveHandicapFields(value, draft.playerSide);
+    setDraft((d) => ({
+      ...d,
+      handicap: resolved.handicap,
+      playerSide: resolved.playerSide,
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      const resolved = resolveHandicapFields(draft.handicap, draft.playerSide);
       const payload: GameRecordDraft = {
         ...draft,
+        handicap: resolved.handicap,
+        playerSide: resolved.playerSide,
         sourceInputText: resolvedSourceInput || draft.sourceInputText,
       };
 
@@ -164,7 +182,7 @@ export function RecordPreviewForm({
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
         />
 
-        <label className="text-sm font-semibold">対局の場所</label>
+        <label className="text-sm font-semibold">対局形式</label>
         <select
           value={draft.venueType}
           onChange={(e) =>
@@ -181,6 +199,20 @@ export function RecordPreviewForm({
             </option>
           ))}
         </select>
+
+        <label className="text-sm font-semibold">手合</label>
+        <input
+          placeholder="例: 香落ち下手、後手、平手、角落ち上手"
+          value={draft.handicap}
+          onChange={(e) => updateHandicap(e.target.value)}
+          className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
+        />
+        {draft.playerSide && (
+          <p className="text-xs text-[var(--color-text-sub)]">
+            自分の手番: {PLAYER_SIDE_LABELS[draft.playerSide]}
+            （駒落ちでは上手が先手になります）
+          </p>
+        )}
 
         <label className="text-sm font-semibold">結果</label>
         <select

@@ -13,10 +13,12 @@ export function StrategyRanking({
   title,
   stats,
   emptyMessage,
+  hideFooterNote = false,
 }: {
   title: string;
   stats: StrategyStat[];
   emptyMessage: string;
+  hideFooterNote?: boolean;
 }) {
   if (stats.length === 0) {
     return (
@@ -74,9 +76,11 @@ export function StrategyRanking({
           );
         })}
       </ul>
-      <p className="text-xs text-[var(--color-text-sub)]">
-        棒の長さ＝勝率（茶色）。0勝の戦型は棒が表示されません。行をタップすると直近の該当対局を開きます。
-      </p>
+      {!hideFooterNote && (
+        <p className="text-xs text-[var(--color-text-sub)]">
+          棒の長さ＝勝率（茶色）。0勝の戦型は棒が表示されません。行をタップすると直近の該当対局を開きます。
+        </p>
+      )}
     </section>
   );
 }

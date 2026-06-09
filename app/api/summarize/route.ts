@@ -9,6 +9,7 @@ import {
   resolveMyStrategy,
 } from "@/app/lib/migi-gyoku-strategy";
 import { applyDictionaryCorrections } from "@/app/lib/shogi-term-corrections";
+import { resolveHandicapFields } from "@/app/lib/handicap";
 import { normalizeWeaknessTag } from "@/app/lib/weakness-tags";
 
 function finalizeText(text: string): string {
@@ -30,6 +31,8 @@ type SummarizeRequest = {
 type RawSummary = {
   playedAt?: string;
   venueType?: string;
+  handicap?: string;
+  playerSide?: string;
   result?: string;
   myStrategy?: string;
   opponentStrategy?: string;
@@ -92,10 +95,16 @@ function toDraft(
     }));
 
   const myStrategyRaw = raw.myStrategy?.trim() ?? "";
+  const { handicap, playerSide } = resolveHandicapFields(
+    raw.handicap?.trim() ?? "",
+    raw.playerSide
+  );
 
   return {
     playedAt: normalizePlayedAt(raw.playedAt),
     venueType: normalizeVenue(raw.venueType) ?? fallbackVenue ?? "other",
+    handicap,
+    playerSide,
     result: normalizeResult(raw.result),
     myStrategy: resolveMyStrategy(myStrategyRaw, transcript),
     opponentStrategy: finalizeText(raw.opponentStrategy?.trim() ?? ""),

@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AnalysisPeriodTabs } from "@/app/components/analysis/AnalysisPeriodTabs";
+import { MatchConditionAnalysis } from "@/app/components/analysis/MatchConditionAnalysis";
 import { StrategyRanking } from "@/app/components/analysis/StrategyRanking";
 import { WeaknessRanking } from "@/app/components/analysis/WeaknessRanking";
 import { Button } from "@/app/components/ui/Button";
 import {
+  computeHandicapStats,
   computeMyStrategyStats,
   computeOpponentStrategyStats,
+  computePlayerSideStats,
   computeTagStats,
   filterRecordsByPeriod,
   type AnalysisPeriod,
@@ -45,6 +48,14 @@ export function AnalysisView() {
   );
   const opponentStrategyStats = useMemo(
     () => computeOpponentStrategyStats(filteredRecords),
+    [filteredRecords]
+  );
+  const playerSideStats = useMemo(
+    () => computePlayerSideStats(filteredRecords),
+    [filteredRecords]
+  );
+  const handicapStats = useMemo(
+    () => computeHandicapStats(filteredRecords),
     [filteredRecords]
   );
 
@@ -99,6 +110,13 @@ export function AnalysisView() {
             title="相手の戦型（対局数順）"
             stats={opponentStrategyStats}
             emptyMessage="この期間に相手の戦型が記録された対局がありません。"
+          />
+
+          <div className="my-2 h-px bg-[var(--color-border)]" />
+
+          <MatchConditionAnalysis
+            playerSideStats={playerSideStats}
+            handicapStats={handicapStats}
           />
         </>
       )}

@@ -58,7 +58,9 @@ export const SUMMARIZE_USER_PROMPT = (
   transcript: string,
   nowJst: string
 ) => `以下は対局直後の振り返りの文字起こしです。構造化要約に変換してください。
-話者は「対局形式 → 相手の段位・級位 → 勝ち負け → 戦型 → …」の順で話すことが多い。
+話者は「対局形式・手合 → 相手の段位・級位 → 勝ち負け → 戦型 → …」の順で話すことが多い。
+**対局形式（venueType）と手合（handicap）は必ず分けて記載する。** 棋の音・将棋ウォーズ10切れなどは venueType のみ。香落ち下手・後手・平手・角落ち上手などは handicap のみ（対局形式名は入れない）。
+駒落ちでは上手が先手になる（将棋のルール）。下手なら後手、上手なら先手。playerSide は話されていれば sente/gote、駒落ちで下手/上手のみならそこから推測してよい。
 勝ち・負けどちらでも myStrategy / opponentStrategy は必ず埋めること。相手の段位・級位は opponentRank に分けて入れる（戦型と混ぜない）。
 ドメイン知識の「悪い要約例」に近い書き方は避け、「良い要約例」の論点を反映してください。
 
@@ -72,7 +74,9 @@ ${transcript}
 【出力JSONスキーマ】
 {
   "playedAt": "ISO8601（未言及なら上記の現在日時）",
-  "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか",
+  "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか（対局形式のみ。手合は入れない）",
+  "handicap": "手合のみ（例: 香落ち下手, 後手, 平手, 角落ち上手。未言及なら空文字）",
+  "playerSide": "sente | gote | 空文字（先手/後手。駒落ちの下手/上手から推測できる場合は省略可）",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
   "opponentRank": "相手の段位・級位（例: 会館初段、ウォーズ初段。未言及なら空文字）",

@@ -4,6 +4,8 @@ export function detailToDraft(record: GameRecordDetail): GameRecordDraft {
   return {
     playedAt: record.playedAt,
     venueType: record.venueType,
+    handicap: record.handicap ?? "",
+    playerSide: record.playerSide ?? null,
     result: record.result,
     myStrategy: record.myStrategy,
     opponentStrategy: record.opponentStrategy,

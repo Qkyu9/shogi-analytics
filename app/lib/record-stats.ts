@@ -1,3 +1,4 @@
+import { PLAYER_SIDE_LABELS } from "./handicap";
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
 import { normalizeWeaknessTag } from "./weakness-tags";
 
@@ -89,6 +90,30 @@ export function computeOpponentStrategyStats(
   records: GameRecordDetail[]
 ): StrategyStat[] {
   return computeStrategyStats(records, (r) => r.opponentStrategy);
+}
+
+export function computePlayerSideStats(
+  records: GameRecordDetail[]
+): StrategyStat[] {
+  const withSide = records.filter(
+    (r) => r.playerSide === "sente" || r.playerSide === "gote"
+  );
+  const stats = computeStrategyStats(withSide, (r) =>
+    r.playerSide === "sente"
+      ? PLAYER_SIDE_LABELS.sente
+      : PLAYER_SIDE_LABELS.gote
+  );
+  const order = [PLAYER_SIDE_LABELS.sente, PLAYER_SIDE_LABELS.gote];
+  return stats.sort(
+    (a, b) => order.indexOf(a.strategy) - order.indexOf(b.strategy)
+  );
+}
+
+export function computeHandicapStats(
+  records: GameRecordDetail[]
+): StrategyStat[] {
+  const withHandicap = records.filter((r) => r.handicap.trim());
+  return computeStrategyStats(withHandicap, (r) => r.handicap.trim());
 }
 
 export function computeTagStats(records: GameRecordDetail[]): TagStat[] {

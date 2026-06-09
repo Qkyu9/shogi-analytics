@@ -7,6 +7,7 @@ import { SourceInputCollapsible } from "@/app/components/records/SourceInputColl
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
 import { deleteRecord, getRecordDetail } from "@/app/lib/record-storage";
+import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 import { formatDateTime, resultLabel } from "@/app/lib/utils";
 
@@ -63,6 +64,14 @@ export function RecordDetailView({ id }: { id: string }) {
         </p>
         <p className="mt-1 font-semibold">{resultLabel(record.result)}</p>
         <p className="mt-1 text-sm">{record.venueLabel}</p>
+        {record.handicap.trim() && (
+          <p className="mt-1 text-sm text-[var(--color-text-sub)]">
+            手合: {record.handicap}
+            {record.playerSide
+              ? `（${PLAYER_SIDE_LABELS[record.playerSide]}）`
+              : ""}
+          </p>
+        )}
         <p className="mt-2">
           {record.myStrategy} vs {record.opponentStrategy || "（未入力）"}
         </p>

@@ -6,6 +6,7 @@ import type {
   VenueType,
 } from "@/app/lib/types";
 import { VENUE_OPTIONS } from "@/app/lib/types";
+import { resolveHandicapFields, type PlayerSide } from "@/app/lib/handicap";
 import {
   bareMigiGyokuToGangi,
   isBareMigiGyokuStrategy,
@@ -42,6 +43,8 @@ type DbRecord = {
   id: string;
   played_at: string;
   venue_type: VenueType;
+  handicap: string;
+  player_side: PlayerSide | null;
   result: GameRecordDetail["result"];
   my_strategy: string;
   opponent_strategy: string;
@@ -69,11 +72,18 @@ function toDetail(row: DbRecord): GameRecordDetail {
       sortOrder: p.sort_order,
     }));
 
+  const { handicap, playerSide } = resolveHandicapFields(
+    row.handicap ?? "",
+    row.player_side
+  );
+
   return {
     id: row.id,
     playedAt: row.played_at,
     venueType: row.venue_type,
     venueLabel: venueLabel(row.venue_type),
+    handicap,
+    playerSide,
     result: row.result,
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
@@ -90,6 +100,8 @@ const recordSelect = `
   id,
   played_at,
   venue_type,
+  handicap,
+  player_side,
   result,
   my_strategy,
   opponent_strategy,
@@ -113,25 +125,33 @@ export async function listGameRecordSummaries(
   const { data, error } = await supabase
     .from("game_records")
     .select(
-      "id, played_at, venue_type, result, my_strategy, opponent_strategy, opponent_rank, tags, game_positions(sort_order)"
+      "id, played_at, venue_type, handicap, player_side, result, my_strategy, opponent_strategy, opponent_rank, tags, game_positions(sort_order)"
     )
     .eq("user_id", userId)
     .order("played_at", { ascending: false });
 
   if (error) throw error;
 
-  return (data ?? []).map((row) => ({
+  return (data ?? []).map((row) => {
+    const { handicap, playerSide } = resolveHandicapFields(
+      row.handicap ?? "",
+      row.player_side as PlayerSide | null
+    );
+    return {
     id: row.id,
     playedAt: row.played_at,
     venueType: row.venue_type as VenueType,
     venueLabel: venueLabel(row.venue_type as VenueType),
+    handicap,
+    playerSide,
     result: row.result as GameRecordDetail["result"],
     myStrategy: row.my_strategy,
     opponentStrategy: row.opponent_strategy,
     opponentRank: row.opponent_rank ?? "",
     tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: row.game_positions?.length ?? 0,
-  }));
+  };
+  });
 }
 
 export async function getGameRecordDetail(
@@ -157,6 +177,10 @@ export async function insertGameRecord(
 ): Promise<GameRecordDetail> {
   const supabase = createServiceRoleClient();
   const positions = normalizePositions(draft.positions);
+  const { handicap, playerSide } = resolveHandicapFields(
+    draft.handicap ?? "",
+    draft.playerSide
+  );
 
   const { data: record, error: recordError } = await supabase
     .from("game_records")
@@ -164,6 +188,8 @@ export async function insertGameRecord(
       user_id: userId,
       played_at: draft.playedAt,
       venue_type: draft.venueType,
+      handicap,
+      player_side: playerSide,
       result: draft.result,
       my_strategy: draft.myStrategy.trim(),
       opponent_strategy: draft.opponentStrategy.trim(),
@@ -235,12 +261,18 @@ export async function updateGameRecord(
 ): Promise<GameRecordDetail> {
   const supabase = createServiceRoleClient();
   const positions = normalizePositions(draft.positions);
+  const { handicap, playerSide } = resolveHandicapFields(
+    draft.handicap ?? "",
+    draft.playerSide
+  );
 
   const { error: recordError } = await supabase
     .from("game_records")
     .update({
       played_at: draft.playedAt,
       venue_type: draft.venueType,
+      handicap,
+      player_side: playerSide,
       result: draft.result,
       my_strategy: draft.myStrategy.trim(),
       opponent_strategy: draft.opponentStrategy.trim(),
@@ -321,6 +353,8 @@ export async function migrateGameRecords(
     const draft: GameRecordDraft = {
       playedAt: record.playedAt,
       venueType: record.venueType,
+      handicap: record.handicap,
+      playerSide: record.playerSide,
       result: record.result,
       myStrategy: record.myStrategy,
       opponentStrategy: record.opponentStrategy,

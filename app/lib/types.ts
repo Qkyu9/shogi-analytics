@@ -1,3 +1,5 @@
+import type { PlayerSide } from "./handicap";
+
 export type GameResult = "win" | "loss" | "draw";
 
 export type VenueType =
@@ -16,6 +18,10 @@ export type GamePosition = {
 export type GameRecordDraft = {
   playedAt: string;
   venueType: VenueType;
+  /** 手合（例: 香落ち下手、後手、平手）。対局形式とは別フィールド */
+  handicap: string;
+  /** 自分の手番。未設定時は手合から推測 */
+  playerSide: PlayerSide | null;
   result: GameResult;
   myStrategy: string;
   opponentStrategy: string;
@@ -33,6 +39,8 @@ export type GameRecordSummary = {
   playedAt: string;
   venueType: VenueType;
   venueLabel: string;
+  handicap: string;
+  playerSide: PlayerSide | null;
   result: GameResult;
   myStrategy: string;
   opponentStrategy: string;
