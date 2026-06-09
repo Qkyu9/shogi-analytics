@@ -7,6 +7,7 @@ import {
   type BookCategory,
 } from "@/app/lib/book-catalog";
 import type { BookClassification } from "@/app/lib/book-classifier";
+import { getCanonicalBookTitle, isSameBookTitle } from "@/app/lib/known-books";
 import {
   classifyBookTitle,
   getOwnedBooks,
@@ -47,8 +48,8 @@ export function OwnedBooksSettings() {
   const handleAdd = async () => {
     const title = inputTitle.trim();
     if (!title) return;
-    if (books.some((b) => b.title === title)) {
-      setError("同じ書名がすでに登録されています");
+    if (books.some((b) => isSameBookTitle(b.title, title))) {
+      setError("同じ棋書がすでに登録されています（表記ゆれも同一扱い）");
       return;
     }
 
@@ -93,7 +94,11 @@ export function OwnedBooksSettings() {
     setSaving(true);
     setError(null);
     try {
-      const savedBooks = await saveOwnedBooks(books);
+      const normalizedBooks = books.map((book) => ({
+        ...book,
+        title: getCanonicalBookTitle(book.title),
+      }));
+      const savedBooks = await saveOwnedBooks(normalizedBooks);
       setBooks(savedBooks);
       setSaved(true);
     } catch (err) {

@@ -2,6 +2,7 @@ import type { BookCategory } from "@/app/lib/book-catalog";
 
 export type KnownBookProfile = {
   id: string;
+  /** 正しい表記（漢数字など）。表示・保存時の正本 */
   titles: string[];
   category: BookCategory;
   coversTags: string[];
@@ -11,15 +12,28 @@ export type KnownBookProfile = {
   description: string;
 };
 
-/** 実在する定番棋書のみ（設定画面のダミー一覧には使わない） */
+const DIGIT_TO_KANJI: Record<string, string> = {
+  "0": "〇",
+  "1": "一",
+  "2": "二",
+  "3": "三",
+  "4": "四",
+  "5": "五",
+  "6": "六",
+  "7": "七",
+  "8": "八",
+  "9": "九",
+};
+
+/** 実在する定番棋書（分類・表記ゆれ照合用） */
 export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
   {
     id: "gote-handbook",
-    titles: ["五手詰ハンドブック", "ご手詰めハンドブック", "5手詰ハンドブック"],
+    titles: ["五手詰ハンドブック", "5手詰ハンドブック", "5手詰めハンドブック"],
     category: "tsumeshogi",
     coversTags: ["寄せの読み漏れ", "詰み逃し・逆転の見落とし", "時間切れ"],
     studyAction: "詰め将棋を解く（1日5〜10問）",
-    isFamous: true,
+    isFamous: false,
     purchaseReason:
       "短い読みの基礎を固める定番。終盤の読み漏れ・詰み逃しの弱点に直結する。",
     description: "詰将棋の入門定番。五手以内の詰め問題集。",
@@ -30,7 +44,7 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
     category: "endgame",
     coversTags: ["寄せの読み漏れ", "勝ち切りの手筋不足"],
     studyAction: "該当する寄せ手筋の問題を読む",
-    isFamous: true,
+    isFamous: false,
     purchaseReason:
       "詰みまで行かない段階の寄せ・勝ち切りを学ぶ定番。終盤の弱点克服に有効。",
     description: "終盤の寄せ手筋200問。詰将棋ではなく寄せの形を学ぶ。",
@@ -60,15 +74,27 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
     purchaseReason: "五手詰の次のステップとして読みの幅を広げられる。",
     description: "三段目までの詰将棋問題集。",
   },
+  {
+    id: "3te-tsume-handbook",
+    titles: ["3手詰ハンドブック", "三手詰ハンドブック"],
+    category: "tsumeshogi",
+    coversTags: ["寄せの読み漏れ", "詰み逃し・逆転の見落とし"],
+    studyAction: "詰め将棋を解く",
+    isFamous: false,
+    purchaseReason: "短い詰将棋で終盤の読みを鍛える。",
+    description: "三手以内の詰将棋問題集。",
+  },
 ];
 
+/** 書名比較用：空白除去・算用数字→漢数字・表記ゆれを統一 */
 export function normalizeBookTitle(title: string): string {
   return title
-    .replace(/\s+/g, "")
-    .replace(/[　]/g, "")
-    .toLowerCase()
-    .replace(/五手詰/g, "ご手詰め")
-    .replace(/5手詰/g, "ご手詰め");
+    .trim()
+    .replace(/[　\s]+/g, "")
+    .replace(/[0-9]/g, (d) => DIGIT_TO_KANJI[d] ?? d)
+    .replace(/詰め/g, "詰")
+    .replace(/つめ/g, "詰")
+    .toLowerCase();
 }
 
 export function findKnownBook(title: string): KnownBookProfile | null {
@@ -90,6 +116,39 @@ export function findKnownBook(title: string): KnownBookProfile | null {
   return null;
 }
 
+/** 定番棋書なら正しい表記（titles[0]）にそろえる */
+export function getCanonicalBookTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) return trimmed;
+  const known = findKnownBook(trimmed);
+  return known ? known.titles[0] : trimmed;
+}
+
+/** 同一棋書か（5手詰と五手詰など表記ゆれを同一視） */
+export function isSameBookTitle(a: string, b: string): boolean {
+  const normA = normalizeBookTitle(a);
+  const normB = normalizeBookTitle(b);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+
+  const knownA = findKnownBook(a);
+  const knownB = findKnownBook(b);
+  if (knownA && knownB) return knownA.id === knownB.id;
+
+  return false;
+}
+
+export function isBookOwned(
+  ownedBooks: Array<{ title: string }>,
+  profile: KnownBookProfile
+): boolean {
+  return ownedBooks.some((book) => {
+    const known = findKnownBook(book.title);
+    if (known) return known.id === profile.id;
+    return isSameBookTitle(book.title, profile.titles[0]);
+  });
+}
+
 export function getKnownBookById(id: string): KnownBookProfile | undefined {
   return KNOWN_BOOK_PROFILES.find((p) => p.id === id);
 }
@@ -97,3 +156,9 @@ export function getKnownBookById(id: string): KnownBookProfile | undefined {
 export const FAMOUS_BOOK_IDS = KNOWN_BOOK_PROFILES.filter((p) => p.isFamous).map(
   (p) => p.id
 );
+
+/** 購入推薦用のAmazon検索URL（外部API不要・軽量） */
+export function buildAmazonSearchUrl(bookTitle: string): string {
+  const query = encodeURIComponent(`${bookTitle} 将棋`);
+  return `https://www.amazon.co.jp/s?k=${query}`;
+}

@@ -5,6 +5,7 @@ import {
 } from "@/app/lib/book-catalog";
 import {
   findKnownBook,
+  getCanonicalBookTitle,
   type KnownBookProfile,
 } from "@/app/lib/known-books";
 
@@ -47,7 +48,7 @@ function fromKnownProfile(
   title: string
 ): BookClassification {
   return {
-    title: title.trim() || profile.titles[0],
+    title: getCanonicalBookTitle(title.trim() || profile.titles[0]),
     category: profile.category,
     studyAction: profile.studyAction,
     coversTags: profile.coversTags,

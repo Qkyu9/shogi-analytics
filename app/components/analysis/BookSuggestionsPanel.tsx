@@ -1,3 +1,4 @@
+import { buildAmazonSearchUrl } from "@/app/lib/known-books";
 import type { BookSuggestion } from "@/app/lib/study-recommendations";
 
 function BookList({
@@ -38,6 +39,16 @@ function BookList({
             <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-sub)]">
               {item.reason}
             </p>
+            {variant === "purchase" && (
+              <a
+                href={buildAmazonSearchUrl(item.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs font-medium text-[var(--color-primary)] underline"
+              >
+                Amazonで探す
+              </a>
+            )}
           </li>
         ))}
       </ul>

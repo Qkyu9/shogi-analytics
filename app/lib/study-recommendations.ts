@@ -6,8 +6,10 @@ import {
 import type { OwnedBook } from "@/app/lib/owned-books-storage";
 import {
   FAMOUS_BOOK_IDS,
+  getCanonicalBookTitle,
   getKnownBookById,
   findKnownBook,
+  isBookOwned,
 } from "@/app/lib/known-books";
 import {
   computeCombinedTagStats,
@@ -53,11 +55,12 @@ function ownedBookToPick(
   topTag: string,
   sourceNote: string
 ): BookSuggestion {
+  const displayTitle = getCanonicalBookTitle(book.title);
   return {
-    bookId: book.id ?? book.title,
-    title: book.title,
+    bookId: book.id ?? displayTitle,
+    title: displayTitle,
     studyAction: book.studyAction || DEFAULT_STUDY_ACTION[book.category],
-    reason: `${sourceNote}より弱点「${topTag}」に対し、手持ちの『${book.title}』を優先`,
+    reason: `${sourceNote}より弱点「${topTag}」に対し、手持ちの『${displayTitle}』を優先`,
     isOwned: true,
     isPurchaseSuggestion: false,
   };
@@ -193,13 +196,12 @@ export function buildStudyMenu(
     .map((b) => ownedBookToPick(b, topTag, sourceNote));
 
   const purchaseSuggestions: BookSuggestion[] = [];
-  const ownedTitles = new Set(ownedBooks.map((b) => b.title));
 
   for (const famousId of FAMOUS_BOOK_IDS) {
     const profile = getKnownBookById(famousId);
     if (!profile) continue;
     const displayTitle = profile.titles[0];
-    if (ownedTitles.has(displayTitle)) continue;
+    if (isBookOwned(ownedBooks, profile)) continue;
     if (!profile.coversTags.some((t) => topTags.includes(t))) continue;
     const suggestion = famousToPurchase(displayTitle, topTag);
     if (suggestion) purchaseSuggestions.push(suggestion);
