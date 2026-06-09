@@ -55,5 +55,5 @@ export const DEFAULT_STUDY_ACTION: Record<BookCategory, string> = {
 };
 
 export function profileToDisplayTitle(profile: KnownBookProfile): string {
-  return profile.titles[0];
+  return profile.canonicalTitle;
 }

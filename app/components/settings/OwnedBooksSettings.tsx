@@ -134,7 +134,7 @@ export function OwnedBooksSettings() {
               <input
                 value={inputTitle}
                 onChange={(e) => setInputTitle(e.target.value)}
-                placeholder="例: 五手詰ハンドブック、寄せの手筋200"
+                placeholder="例: 5手詰ハンドブック、寄せの手筋200"
                 className="min-h-11 flex-1 rounded-lg border border-[var(--color-border)] px-3 text-sm"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {

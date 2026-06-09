@@ -71,7 +71,7 @@ function famousToPurchase(title: string, topTag: string): BookSuggestion | null 
   if (!known || !known.isFamous) return null;
   return {
     bookId: known.id,
-    title: known.titles[0],
+    title: known.canonicalTitle,
     studyAction: known.studyAction,
     reason: known.purchaseReason,
     isOwned: false,
@@ -200,7 +200,7 @@ export function buildStudyMenu(
   for (const famousId of FAMOUS_BOOK_IDS) {
     const profile = getKnownBookById(famousId);
     if (!profile) continue;
-    const displayTitle = profile.titles[0];
+    const displayTitle = profile.canonicalTitle;
     if (isBookOwned(ownedBooks, profile)) continue;
     if (!profile.coversTags.some((t) => topTags.includes(t))) continue;
     const suggestion = famousToPurchase(displayTitle, topTag);

@@ -2,8 +2,14 @@ import type { BookCategory } from "@/app/lib/book-catalog";
 
 export type KnownBookProfile = {
   id: string;
-  /** 正しい表記（漢数字など）。表示・保存時の正本 */
-  titles: string[];
+  /** 販売ページ等で確認した正式表記（表示・保存時の正本） */
+  canonicalTitle: string;
+  /** 同一棋書として扱う別表記 */
+  aliases: string[];
+  /** 表記の根拠（メンテナンス用） */
+  titleSource?: string;
+  /** 確認済みのAmazon商品ページ（あれば検索より優先） */
+  amazonUrl?: string;
   category: BookCategory;
   coversTags: string[];
   studyAction: string;
@@ -29,7 +35,15 @@ const DIGIT_TO_KANJI: Record<string, string> = {
 export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
   {
     id: "gote-handbook",
-    titles: ["五手詰ハンドブック", "5手詰ハンドブック", "5手詰めハンドブック"],
+    canonicalTitle: "5手詰ハンドブック",
+    aliases: [
+      "5手詰ハンドブック",
+      "五手詰ハンドブック",
+      "5手詰めハンドブック",
+      "ご手詰めハンドブック",
+    ],
+    titleSource: "Amazon商品ページ（ASIN 4861370353）",
+    amazonUrl: "https://www.amazon.co.jp/dp/4861370353",
     category: "tsumeshogi",
     coversTags: ["寄せの読み漏れ", "詰み逃し・逆転の見落とし", "時間切れ"],
     studyAction: "詰め将棋を解く（1日5〜10問）",
@@ -40,7 +54,8 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
   },
   {
     id: "yose-200",
-    titles: ["寄せの手筋200", "寄せの手筋 200"],
+    canonicalTitle: "寄せの手筋200",
+    aliases: ["寄せの手筋200", "寄せの手筋 200"],
     category: "endgame",
     coversTags: ["寄せの読み漏れ", "勝ち切りの手筋不足"],
     studyAction: "該当する寄せ手筋の問題を読む",
@@ -51,7 +66,8 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
   },
   {
     id: "kishinogi-200",
-    titles: ["凌ぎの手筋200", "凌ぎの手筋 200"],
+    canonicalTitle: "凌ぎの手筋200",
+    aliases: ["凌ぎの手筋200", "凌ぎの手筋 200"],
     category: "defense",
     coversTags: [
       "守りの手筋選択",
@@ -66,17 +82,19 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
   },
   {
     id: "3dan-tsume",
-    titles: ["三段目までの詰将棋", "3段目までの詰将棋"],
+    canonicalTitle: "3段目までの詰将棋",
+    aliases: ["3段目までの詰将棋", "三段目までの詰将棋"],
     category: "tsumeshogi",
     coversTags: ["寄せの読み漏れ", "詰み逃し・逆転の見落とし"],
     studyAction: "詰め将棋を解く",
     isFamous: false,
-    purchaseReason: "五手詰の次のステップとして読みの幅を広げられる。",
+    purchaseReason: "5手詰の次のステップとして読みの幅を広げられる。",
     description: "三段目までの詰将棋問題集。",
   },
   {
     id: "3te-tsume-handbook",
-    titles: ["3手詰ハンドブック", "三手詰ハンドブック"],
+    canonicalTitle: "3手詰ハンドブック",
+    aliases: ["3手詰ハンドブック", "三手詰ハンドブック"],
     category: "tsumeshogi",
     coversTags: ["寄せの読み漏れ", "詰み逃し・逆転の見落とし"],
     studyAction: "詰め将棋を解く",
@@ -85,6 +103,10 @@ export const KNOWN_BOOK_PROFILES: KnownBookProfile[] = [
     description: "三手以内の詰将棋問題集。",
   },
 ];
+
+function allProfileTitles(profile: KnownBookProfile): string[] {
+  return [profile.canonicalTitle, ...profile.aliases];
+}
 
 /** 書名比較用：空白除去・算用数字→漢数字・表記ゆれを統一 */
 export function normalizeBookTitle(title: string): string {
@@ -102,7 +124,7 @@ export function findKnownBook(title: string): KnownBookProfile | null {
   if (!normalized) return null;
 
   for (const profile of KNOWN_BOOK_PROFILES) {
-    for (const alias of profile.titles) {
+    for (const alias of allProfileTitles(profile)) {
       const aliasNorm = normalizeBookTitle(alias);
       if (
         normalized === aliasNorm ||
@@ -116,12 +138,12 @@ export function findKnownBook(title: string): KnownBookProfile | null {
   return null;
 }
 
-/** 定番棋書なら正しい表記（titles[0]）にそろえる */
+/** 定番棋書なら販売ページ等で確認した正式表記にそろえる */
 export function getCanonicalBookTitle(title: string): string {
   const trimmed = title.trim();
   if (!trimmed) return trimmed;
   const known = findKnownBook(trimmed);
-  return known ? known.titles[0] : trimmed;
+  return known ? known.canonicalTitle : trimmed;
 }
 
 /** 同一棋書か（5手詰と五手詰など表記ゆれを同一視） */
@@ -145,7 +167,7 @@ export function isBookOwned(
   return ownedBooks.some((book) => {
     const known = findKnownBook(book.title);
     if (known) return known.id === profile.id;
-    return isSameBookTitle(book.title, profile.titles[0]);
+    return isSameBookTitle(book.title, profile.canonicalTitle);
   });
 }
 
@@ -161,4 +183,11 @@ export const FAMOUS_BOOK_IDS = KNOWN_BOOK_PROFILES.filter((p) => p.isFamous).map
 export function buildAmazonSearchUrl(bookTitle: string): string {
   const query = encodeURIComponent(`${bookTitle} 将棋`);
   return `https://www.amazon.co.jp/s?k=${query}`;
+}
+
+/** 棋書のAmazonリンク（確認済み商品ページがあれば優先） */
+export function buildAmazonUrl(bookTitle: string): string {
+  const known = findKnownBook(bookTitle);
+  if (known?.amazonUrl) return known.amazonUrl;
+  return buildAmazonSearchUrl(getCanonicalBookTitle(bookTitle));
 }

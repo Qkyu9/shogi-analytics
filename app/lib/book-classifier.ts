@@ -48,7 +48,7 @@ function fromKnownProfile(
   title: string
 ): BookClassification {
   return {
-    title: getCanonicalBookTitle(title.trim() || profile.titles[0]),
+    title: getCanonicalBookTitle(title.trim() || profile.canonicalTitle),
     category: profile.category,
     studyAction: profile.studyAction,
     coversTags: profile.coversTags,
@@ -97,6 +97,7 @@ async function classifyWithAI(
 
   const system = `あなたは将棋棋書の分類アシスタントです。
 書名から棋書の種類を判別し、JSONのみを返してください。
+- 書名の表記（算用数字か漢数字かなど）は、Web参考情報や商品ページの正式名称に合わせる。ユーザー入力と販売表記が異なる場合は正式名称を title に使う
 - tsumeshogi: 詰将棋問題集（五手詰ハンドブック等）
 - endgame: 終盤・寄せ（詰みまで行かない寄せ手筋。寄せの手筋200等）
 - defense: 受け・凌ぎ（凌ぎの手筋200等）
@@ -111,6 +112,7 @@ ${webContext ? `Web上の参考情報:\n${webContext}\n` : ""}
 
 JSON形式:
 {
+  "title": "販売ページ・公式表記に合わせた正式書名（入力の表記ゆれはここで正す）",
   "category": "tsumeshogi | opening | midgame | endgame | defense | general",
   "studyAction": "この本で何をすればよいか（1文）",
   "coversTags": ["弱点分析に関連しうるタグを0〜3個"],
@@ -175,8 +177,11 @@ JSON形式:
       ? raw.confidence
       : "low";
 
+  const aiTitle = String(raw.title ?? "").trim();
+  const resolvedTitle = getCanonicalBookTitle(aiTitle || title.trim());
+
   return {
-    title: title.trim(),
+    title: resolvedTitle,
     category,
     studyAction,
     coversTags,
