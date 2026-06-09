@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KishinInsightView } from "@/app/components/records/KishinInsightView";
 import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
-import { deleteRecord, getRecordDetail } from "@/app/lib/record-storage";
+import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
+import { detailToDraft } from "@/app/lib/record-draft";
+import { deleteRecord, getRecordDetail, updateRecord } from "@/app/lib/record-storage";
 import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 import { formatDateTime, resultLabel } from "@/app/lib/utils";
@@ -20,6 +22,9 @@ export function RecordDetailView({ id }: { id: string }) {
   const [ready, setReady] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("verbal");
+  const [kishinLoading, setKishinLoading] = useState(false);
+  const [kishinBackfillError, setKishinBackfillError] = useState(false);
+  const backfillStartedRef = useRef(false);
 
   useEffect(() => {
     getRecordDetail(id)
@@ -33,6 +38,33 @@ export function RecordDetailView({ id }: { id: string }) {
       })
       .catch(() => router.replace("/records"));
   }, [id, router]);
+
+  // 棋譜あり・示唆なしの既存記録は自動生成してDBに保存（1回だけ）
+  useEffect(() => {
+    if (!ready || !record) return;
+    const kifu = record.kifuText?.trim();
+    if (!kifu || record.kishinInsight) return;
+    if (backfillStartedRef.current) return;
+    backfillStartedRef.current = true;
+
+    setKishinLoading(true);
+    setKishinBackfillError(false);
+
+    (async () => {
+      try {
+        const insight = await generateKishinInsight(kifu);
+        const updated = await updateRecord(record.id, {
+          ...detailToDraft(record),
+          kishinInsight: insight,
+        });
+        setRecord(updated);
+      } catch {
+        setKishinBackfillError(true);
+      } finally {
+        setKishinLoading(false);
+      }
+    })();
+  }, [ready, record]);
 
   const handleDelete = async () => {
     if (!record) return;
@@ -171,6 +203,8 @@ export function RecordDetailView({ id }: { id: string }) {
             <KishinInsightView
               kifuText={record.kifuText}
               insight={record.kishinInsight}
+              loading={kishinLoading}
+              loadError={kishinBackfillError}
             />
           )}
         </div>

@@ -113,7 +113,8 @@ export function RecordPreviewForm({
       const kifuChanged =
         kifuText !== (initialData.kifuText?.trim() ?? "");
       const shouldGenerateKishin =
-        kifuText && (kifuChanged || !draft.kishinInsight);
+        Boolean(kifuText) &&
+        (mode === "create" || kifuChanged || !initialData.kishinInsight);
 
       if (shouldGenerateKishin) {
         setGeneratingKishin(true);
@@ -121,13 +122,19 @@ export function RecordPreviewForm({
         try {
           kishinInsight = await generateKishinInsight(kifuText);
         } catch {
-          // 棋神示唆の生成失敗時も口頭要約は保存する
-          kishinInsight = draft.kishinInsight;
+          // 生成失敗時は既存の示唆を維持（口頭要約は保存を続行）
+          kishinInsight = initialData.kishinInsight ?? draft.kishinInsight;
+          setSaveStatus(
+            "棋神からの示唆の生成に失敗しました。口頭要約のみ保存します。"
+          );
         } finally {
           setGeneratingKishin(false);
         }
       } else if (!kifuText) {
         kishinInsight = undefined;
+      } else {
+        // 棋譜変更なし → 保存済みの示唆をそのまま使う
+        kishinInsight = initialData.kishinInsight ?? draft.kishinInsight;
       }
 
       const payload: GameRecordDraft = {
@@ -202,8 +209,8 @@ export function RecordPreviewForm({
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
         {mode === "edit"
-          ? "保存済みの記録を編集できます。各欄のマイクで音声入力もできます。棋譜を変更して保存すると、棋神からの示唆も再生成されます。"
-          : "AIが要約した内容です。タイピングまたは各欄のマイクで修正して保存できます。棋譜を貼り付けると、保存時に棋神からの示唆も自動生成されます。"}
+          ? "保存済みの記録を編集できます。各欄のマイクで音声入力もできます。棋譜を変更して保存すると、棋神からの示唆も自動で更新されます。"
+          : "AIが要約した内容です。タイピングまたは各欄のマイクで修正して保存できます。棋譜を貼り付けて保存すると、棋神からの示唆も自動で記録に残ります。"}
       </p>
 
       <section className="flex flex-col gap-3">

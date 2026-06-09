@@ -1,72 +1,49 @@
 "use client";
 
-import { useState } from "react";
 import { CollapsibleSection } from "@/app/components/ui/CollapsibleSection";
-import { Button } from "@/app/components/ui/Button";
-import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
 import type { KishinInsight } from "@/app/lib/types";
 
 export function KishinInsightView({
   kifuText,
   insight,
-  onInsightGenerated,
+  loading = false,
+  loadError = false,
 }: {
   kifuText?: string;
   insight?: KishinInsight;
-  onInsightGenerated?: (insight: KishinInsight) => void;
+  loading?: boolean;
+  loadError?: boolean;
 }) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [localInsight, setLocalInsight] = useState<KishinInsight | undefined>(
-    insight
-  );
-
-  const activeInsight = localInsight ?? insight;
   const trimmedKifu = kifuText?.trim() ?? "";
-
-  const handleGenerate = async () => {
-    if (!trimmedKifu) return;
-    setGenerating(true);
-    setError(null);
-    try {
-      const generated = await generateKishinInsight(trimmedKifu);
-      setLocalInsight(generated);
-      onInsightGenerated?.(generated);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "棋神示唆の生成に失敗しました。"
-      );
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   if (!trimmedKifu) {
     return (
       <p className="text-sm text-[var(--color-text-sub)]">
-        棋譜が登録されていません。編集画面で棋神アナリティクスの棋譜を貼り付けると、ここに示唆が表示されます。
+        棋譜が登録されていません。編集画面で棋神アナリティクスの棋譜を貼り付けて保存すると、ここに示唆が表示されます。
       </p>
     );
   }
 
-  if (!activeInsight) {
+  if (loading) {
     return (
-      <div className="flex flex-col gap-3">
-        <p className="text-sm text-[var(--color-text-sub)]">
-          棋譜は登録済みです。棋神の評価・候補手から示唆を生成できます。
-        </p>
-        {error && (
-          <p className="text-sm text-[var(--color-danger)]">{error}</p>
-        )}
-        <Button onClick={handleGenerate} disabled={generating}>
-          {generating ? "棋神示唆を生成中..." : "棋神からの示唆を生成"}
-        </Button>
-      </div>
+      <p className="text-sm text-[var(--color-text-sub)]">
+        棋神からの示唆を読み込んでいます…
+      </p>
     );
   }
 
-  const summaries = activeInsight.briefSummaries.filter(Boolean);
-  const turningCount = activeInsight.turningPoints.length;
+  if (!insight) {
+    return (
+      <p className="text-sm text-[var(--color-text-sub)]">
+        {loadError
+          ? "棋神からの示唆を取得できませんでした。記録を編集して保存し直すと、再度生成を試みます。"
+          : "棋神からの示唆を準備しています…"}
+      </p>
+    );
+  }
+
+  const summaries = insight.briefSummaries.filter(Boolean);
+  const turningCount = insight.turningPoints.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -90,7 +67,7 @@ export function KishinInsightView({
           preview={`${turningCount}件の要所（タップで詳細）`}
         >
           <div className="flex flex-col gap-3">
-            {activeInsight.turningPoints.map((tp, index) => (
+            {insight.turningPoints.map((tp, index) => (
               <div
                 key={`${tp.moveNumber}-${index}`}
                 className="rounded-lg bg-[var(--color-surface)] p-3 text-sm"
@@ -127,21 +104,6 @@ export function KishinInsightView({
           </pre>
         </div>
       </CollapsibleSection>
-
-      {onInsightGenerated && (
-        <div className="border-t border-[var(--color-border)] pt-3">
-          {error && (
-            <p className="mb-2 text-sm text-[var(--color-danger)]">{error}</p>
-          )}
-          <Button
-            variant="secondary"
-            onClick={handleGenerate}
-            disabled={generating}
-          >
-            {generating ? "再生成中..." : "棋神示唆を再生成"}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

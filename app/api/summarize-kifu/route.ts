@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
+import { trimKifuForAnalysis } from "@/app/lib/kifu-text-trim";
 import {
   SUMMARIZE_KIFU_SYSTEM_PROMPT,
   SUMMARIZE_KIFU_USER_PROMPT,
@@ -136,9 +137,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const trimmedKifu = trimKifuForAnalysis(kifuText);
     const summaryText = anthropicKey
-      ? await callClaude(anthropicKey, kifuText)
-      : await callOpenAI(openaiKey!, kifuText);
+      ? await callClaude(anthropicKey, trimmedKifu)
+      : await callOpenAI(openaiKey!, trimmedKifu);
 
     const raw = extractJson(summaryText);
     const insight = normalizeInsight(raw);
