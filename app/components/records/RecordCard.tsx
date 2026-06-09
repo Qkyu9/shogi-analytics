@@ -34,9 +34,9 @@ export function RecordCard({ record }: { record: GameRecordSummary }) {
         <p className="mt-0.5 text-xs text-[var(--color-text-sub)]">
           {record.venueLabel}
         </p>
-        {record.insightTags.length > 0 && (
+        {record.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {record.insightTags.map((tag) => (
+            {record.tags.map((tag) => (
               <TagChip key={tag} label={tag} />
             ))}
           </div>

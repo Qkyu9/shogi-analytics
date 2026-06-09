@@ -12,7 +12,6 @@ import {
   bareMigiGyokuToGangi,
   isBareMigiGyokuStrategy,
 } from "@/app/lib/migi-gyoku-strategy";
-import { extractTagsFromKishinInsight } from "@/app/lib/kishin-tag-extraction";
 import {
   hasKifuInputData,
   hasVoiceInputData,
@@ -99,9 +98,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
     positionCount: positions.length,
     hasVoiceInput: hasVoiceInputData(row.source_input_text, positions),
     hasKifuData: hasKifuInputData(row.kifu_text, row.kishin_insight),
-    insightTags: row.kishin_insight
-      ? extractTagsFromKishinInsight(row.kishin_insight).slice(0, 2)
-      : [],
+    insightTags: [],
     positions,
     kifuText: row.kifu_text ?? undefined,
     kishinInsight: row.kishin_insight ?? undefined,
@@ -177,12 +174,7 @@ export async function listGameRecordSummaries(
       row.kifu_text as string | null,
       row.kishin_insight as KishinInsight | null
     ),
-    insightTags:
-      row.kishin_insight != null
-        ? extractTagsFromKishinInsight(
-            row.kishin_insight as KishinInsight
-          ).slice(0, 2)
-        : [],
+    insightTags: [],
   };
   });
 }

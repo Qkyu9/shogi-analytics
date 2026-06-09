@@ -87,7 +87,7 @@ export function extractTagsFromKishinInsight(insight: KishinInsight): string[] {
     .map(([tag]) => tag);
 
   if (ranked.length > 0) return ranked.slice(0, 3);
-  return [MIDGAME_READ_TAG];
+  return [];
 }
 
 export function computeKishinTagStats(records: GameRecordDetail[]): TagStat[] {
