@@ -7,6 +7,7 @@ import { clearTranscriptCache } from "@/app/lib/transcript-cache";
 import { saveRecord, updateRecord } from "@/app/lib/record-storage";
 import { Button } from "@/app/components/ui/Button";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
+import { buildVerbalSummaryText } from "@/app/lib/kifu-player-context";
 import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
 import { FieldVoiceInput } from "./FieldVoiceInput";
 import { KifuPasteArea } from "./KifuPasteArea";
@@ -115,7 +116,9 @@ export function RecordPreviewForm({
         kifuText !== (initialData.kifuText?.trim() ?? "");
       const contextChanged =
         resolved.playerSide !== (initialData.playerSide ?? null) ||
-        draft.result !== initialData.result;
+        draft.result !== initialData.result ||
+        buildVerbalSummaryText(draft.positions) !==
+          buildVerbalSummaryText(initialData.positions);
       const formatOutdated =
         (initialData.kishinInsight?.insightFormatVersion ?? 1) <
         KISHIN_INSIGHT_FORMAT_VERSION;
@@ -134,6 +137,7 @@ export function RecordPreviewForm({
           kishinInsight = await generateKishinInsight(kifuText, {
             playerSide: resolved.playerSide,
             result: draft.result,
+            verbalSummaryText: buildVerbalSummaryText(draft.positions),
           });
         } catch {
           // 生成失敗時は既存の示唆を維持（口頭要約は保存を続行）

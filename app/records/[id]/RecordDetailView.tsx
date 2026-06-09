@@ -7,6 +7,7 @@ import { KishinInsightView } from "@/app/components/records/KishinInsightView";
 import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
+import { buildVerbalSummaryText } from "@/app/lib/kifu-player-context";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
 import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
 import { detailToDraft } from "@/app/lib/record-draft";
@@ -70,6 +71,7 @@ export function RecordDetailView({ id }: { id: string }) {
         const insight = await generateKishinInsight(kifu, {
           playerSide: record.playerSide,
           result: record.result,
+          verbalSummaryText: buildVerbalSummaryText(record.positions),
         });
         const updated = await updateRecord(record.id, {
           ...detailToDraft(record),

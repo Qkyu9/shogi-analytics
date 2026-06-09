@@ -3,6 +3,10 @@ import type { PlayerSide } from "@/app/lib/handicap";
 import type { KifuAnalysisContext } from "@/app/lib/kifu-player-context";
 import { trimKifuForAnalysis } from "@/app/lib/kifu-text-trim";
 import {
+  kifuMoveMatches,
+  parseKifuMoveIndex,
+} from "@/app/lib/kifu-move-index";
+import {
   KISHIN_INSIGHT_FORMAT_VERSION,
   SUMMARIZE_KIFU_SYSTEM_PROMPT,
   SUMMARIZE_KIFU_USER_PROMPT,
@@ -13,6 +17,7 @@ type SummarizeKifuRequest = {
   kifuText: string;
   playerSide?: PlayerSide | null;
   result?: GameResult | null;
+  verbalSummaryText?: string | null;
 };
 
 type RawKishinInsight = {
@@ -27,9 +32,25 @@ function extractJson(text: string): RawKishinInsight {
   return JSON.parse(jsonText) as RawKishinInsight;
 }
 
+function alignTurningPointsWithKifu(
+  points: KishinTurningPoint[],
+  kifuText: string
+): KishinTurningPoint[] {
+  const index = parseKifuMoveIndex(kifuText);
+  if (index.size === 0) return points;
+
+  return points.map((tp) => {
+    const actual = index.get(tp.moveNumber);
+    if (!actual) return tp;
+    if (kifuMoveMatches(index, tp.moveNumber, tp.move)) return tp;
+    return { ...tp, move: actual };
+  });
+}
+
 function normalizeInsight(
   raw: RawKishinInsight,
-  context: KifuAnalysisContext
+  context: KifuAnalysisContext,
+  kifuText: string
 ): KishinInsight {
   const briefSummaries = (raw.briefSummaries ?? [])
     .map((s) => s.trim())
@@ -40,16 +61,19 @@ function normalizeInsight(
     briefSummaries.push("");
   }
 
-  const turningPoints: KishinTurningPoint[] = (raw.turningPoints ?? [])
-    .filter((tp) => tp && tp.moveNumber && tp.move)
-    .map((tp) => ({
-      moveNumber: Number(tp.moveNumber),
-      move: String(tp.move).trim(),
-      evalChange: String(tp.evalChange ?? "").trim(),
-      topCandidate: String(tp.topCandidate ?? "").trim(),
-      insight: String(tp.insight ?? "").trim(),
-    }))
-    .filter((tp) => tp.insight || tp.evalChange || tp.topCandidate);
+  const turningPoints = alignTurningPointsWithKifu(
+    (raw.turningPoints ?? [])
+      .filter((tp) => tp && tp.moveNumber && tp.move)
+      .map((tp) => ({
+        moveNumber: Number(tp.moveNumber),
+        move: String(tp.move).trim(),
+        evalChange: String(tp.evalChange ?? "").trim(),
+        topCandidate: String(tp.topCandidate ?? "").trim(),
+        insight: String(tp.insight ?? "").trim(),
+      }))
+      .filter((tp) => tp.insight || tp.evalChange || tp.topCandidate),
+    kifuText
+  );
 
   return {
     briefSummaries,
@@ -70,7 +94,12 @@ function parseAnalysisContext(
     body.result === "win" || body.result === "loss" || body.result === "draw"
       ? body.result
       : null;
-  return { playerSide, result };
+  const verbal = body.verbalSummaryText?.trim();
+  return {
+    playerSide,
+    result,
+    verbalSummaryText: verbal || null,
+  };
 }
 
 async function callClaude(
@@ -179,7 +208,7 @@ export async function POST(request: NextRequest) {
       : await callOpenAI(openaiKey!, trimmedKifu, context);
 
     const raw = extractJson(summaryText);
-    const insight = normalizeInsight(raw, context);
+    const insight = normalizeInsight(raw, context, trimmedKifu);
 
     const hasContent =
       insight.briefSummaries.some(Boolean) || insight.turningPoints.length > 0;
