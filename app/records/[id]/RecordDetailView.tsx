@@ -8,6 +8,7 @@ import { SourceInputCollapsible } from "@/app/components/records/SourceInputColl
 import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
+import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
 import { detailToDraft } from "@/app/lib/record-draft";
 import { deleteRecord, getRecordDetail, updateRecord } from "@/app/lib/record-storage";
 import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
@@ -39,7 +40,7 @@ export function RecordDetailView({ id }: { id: string }) {
       .catch(() => router.replace("/records"));
   }, [id, router]);
 
-  // 棋譜ありで示唆が未生成、または手番反映前の旧示唆がある記録は自動生成（1回だけ）
+  // 棋譜ありで示唆が未生成、または旧形式の示唆がある記録は自動生成（1回だけ）
   useEffect(() => {
     if (!ready || !record) return;
     const kifu = record.kifuText?.trim();
@@ -50,8 +51,14 @@ export function RecordDetailView({ id }: { id: string }) {
       Boolean(record.kishinInsight) &&
       Boolean(record.playerSide) &&
       !record.kishinInsight?.playerPerspectiveApplied;
+    const needsFormatRefresh =
+      Boolean(record.kishinInsight) &&
+      (record.kishinInsight?.insightFormatVersion ?? 1) <
+        KISHIN_INSIGHT_FORMAT_VERSION;
 
-    if (!needsBackfill && !needsPerspectiveRefresh) return;
+    if (!needsBackfill && !needsPerspectiveRefresh && !needsFormatRefresh) {
+      return;
+    }
     if (backfillStartedRef.current) return;
     backfillStartedRef.current = true;
 

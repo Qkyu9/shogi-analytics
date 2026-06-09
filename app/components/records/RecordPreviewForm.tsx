@@ -7,6 +7,7 @@ import { clearTranscriptCache } from "@/app/lib/transcript-cache";
 import { saveRecord, updateRecord } from "@/app/lib/record-storage";
 import { Button } from "@/app/components/ui/Button";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
+import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
 import { FieldVoiceInput } from "./FieldVoiceInput";
 import { KifuPasteArea } from "./KifuPasteArea";
 import { SourceInputCollapsible } from "./SourceInputCollapsible";
@@ -115,11 +116,15 @@ export function RecordPreviewForm({
       const contextChanged =
         resolved.playerSide !== (initialData.playerSide ?? null) ||
         draft.result !== initialData.result;
+      const formatOutdated =
+        (initialData.kishinInsight?.insightFormatVersion ?? 1) <
+        KISHIN_INSIGHT_FORMAT_VERSION;
       const shouldGenerateKishin =
         Boolean(kifuText) &&
         (mode === "create" ||
           kifuChanged ||
           contextChanged ||
+          formatOutdated ||
           !initialData.kishinInsight);
 
       if (shouldGenerateKishin) {

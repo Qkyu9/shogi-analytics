@@ -3,6 +3,7 @@ import type { PlayerSide } from "@/app/lib/handicap";
 import type { KifuAnalysisContext } from "@/app/lib/kifu-player-context";
 import { trimKifuForAnalysis } from "@/app/lib/kifu-text-trim";
 import {
+  KISHIN_INSIGHT_FORMAT_VERSION,
   SUMMARIZE_KIFU_SYSTEM_PROMPT,
   SUMMARIZE_KIFU_USER_PROMPT,
 } from "@/app/lib/prompts/summarize-kifu";
@@ -54,6 +55,7 @@ function normalizeInsight(
     briefSummaries,
     turningPoints,
     playerPerspectiveApplied: context.playerSide != null,
+    insightFormatVersion: KISHIN_INSIGHT_FORMAT_VERSION,
   };
 }
 

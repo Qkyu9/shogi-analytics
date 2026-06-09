@@ -30,6 +30,8 @@ export type KishinInsight = {
   turningPoints: KishinTurningPoint[];
   /** 音声入力の手番・勝敗を反映して生成したか（旧データの再生成判定用） */
   playerPerspectiveApplied?: boolean;
+  /** 端的なまとめの具体性ルールのバージョン（旧データの再生成判定用） */
+  insightFormatVersion?: number;
 };
 
 export type GameRecordDraft = {
