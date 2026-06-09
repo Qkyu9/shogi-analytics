@@ -1,6 +1,7 @@
 import { UserButton } from "@clerk/nextjs";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { OwnedBooksSettings } from "@/app/components/settings/OwnedBooksSettings";
+import { StudyMenuSourceSettings } from "@/app/components/settings/StudyMenuSourceSettings";
 import { Card } from "@/app/components/ui/Card";
 
 export default function SettingsPage() {
@@ -19,6 +20,8 @@ export default function SettingsPage() {
         </Card>
 
         <OwnedBooksSettings />
+
+        <StudyMenuSourceSettings />
 
         <Card>
           <h2 className="text-sm font-semibold">1日の学習時間</h2>

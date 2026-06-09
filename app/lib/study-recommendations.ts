@@ -10,9 +10,15 @@ import {
   findKnownBook,
 } from "@/app/lib/known-books";
 import {
+  computeKishinTagStats,
+  getKishinHighlight,
+} from "@/app/lib/kishin-tag-extraction";
+import {
   computeMyStrategyStats,
   computeTagStats,
 } from "@/app/lib/record-stats";
+import type { StudyMenuDataSource } from "@/app/lib/study-menu-settings";
+import { DEFAULT_STUDY_MENU_SOURCE } from "@/app/lib/study-menu-settings";
 import type { GameRecordDetail, StudyAllocation } from "@/app/lib/types";
 
 export type BookSuggestion = {
@@ -41,12 +47,16 @@ function scoreOwnedBook(book: OwnedBook, topTags: string[]): number {
   return tagHits + titleHits;
 }
 
-function ownedBookToPick(book: OwnedBook, topTag: string): BookSuggestion {
+function ownedBookToPick(
+  book: OwnedBook,
+  topTag: string,
+  sourceNote: string
+): BookSuggestion {
   return {
     bookId: book.id ?? book.title,
     title: book.title,
     studyAction: book.studyAction || DEFAULT_STUDY_ACTION[book.category],
-    reason: `弱点「${topTag}」に対し、手持ちの『${book.title}』を優先`,
+    reason: `${sourceNote}より弱点「${topTag}」に対し、手持ちの『${book.title}』を優先`,
     isOwned: true,
     isPurchaseSuggestion: false,
   };
@@ -88,15 +98,24 @@ function buildAllocationReason(
 
 export function buildStudyMenu(
   records: GameRecordDetail[],
-  ownedBooks: OwnedBook[]
+  ownedBooks: OwnedBook[],
+  options?: { dataSource?: StudyMenuDataSource }
 ): StudyMenuResult | null {
-  const tagStats = computeTagStats(records);
+  const dataSource = options?.dataSource ?? DEFAULT_STUDY_MENU_SOURCE;
+  const tagStats =
+    dataSource === "kishin"
+      ? computeKishinTagStats(records)
+      : computeTagStats(records);
   if (tagStats.length === 0) return null;
 
   const topTags = tagStats.slice(0, 3).map((s) => s.tag);
   const topTag = topTags[0];
   const strategyStats = computeMyStrategyStats(records);
   const topStrategy = strategyStats[0]?.strategy;
+  const kishinHighlight =
+    dataSource === "kishin" ? getKishinHighlight(records) : null;
+  const sourceNote =
+    dataSource === "kishin" ? "棋神からの示唆" : "口頭要約の弱点タグ";
 
   const ownedSorted = [...ownedBooks]
     .sort((a, b) => scoreOwnedBook(b, topTags) - scoreOwnedBook(a, topTags));
@@ -116,9 +135,11 @@ export function buildStudyMenu(
       item: "中盤手筋",
       percentage: 40,
       reason: buildAllocationReason(
-        `弱点タグ「${topTag}」が最多。${
-          topStrategy ? `採用戦型は${topStrategy}。` : ""
-        }中盤の判断と手筋を優先する。`,
+        dataSource === "kishin" && kishinHighlight
+          ? `${sourceNote}より「${topTag}」が重点。${kishinHighlight}`
+          : `${sourceNote}より弱点「${topTag}」が最多。${
+              topStrategy ? `採用戦型は${topStrategy}。` : ""
+            }中盤の判断と手筋を優先する。`,
         midgameOwned.length > 0 ? midgameOwned : defenseOwned
       ),
       books: (midgameOwned.length > 0 ? midgameOwned : defenseOwned).map(
@@ -134,7 +155,7 @@ export function buildStudyMenu(
       item: "実戦",
       percentage: 35,
       reason: buildAllocationReason(
-        "対局直後の振り返りとセットで弱点を定着させる。",
+        `${sourceNote}を踏まえ、対局直後の振り返りとセットで弱点を定着させる。`,
         booksForCategory(ownedBooks, "opening", topTags, 1)
       ),
     },
@@ -143,7 +164,7 @@ export function buildStudyMenu(
       percentage: 25,
       dailyCount: 5,
       reason: buildAllocationReason(
-        "短い読みの維持。終盤の読み漏れ防止にもつながる。",
+        `${sourceNote}で見えた読みの弱点を補うため、短い読みの維持を優先する。`,
         tsumeshogiOwned.length > 0 ? tsumeshogiOwned : endgameOwned
       ),
       books: (tsumeshogiOwned.length > 0 ? tsumeshogiOwned : endgameOwned).map(
@@ -157,7 +178,9 @@ export function buildStudyMenu(
     },
   ];
 
-  const ownedBookPicks = ownedSorted.slice(0, 3).map((b) => ownedBookToPick(b, topTag));
+  const ownedBookPicks = ownedSorted
+    .slice(0, 3)
+    .map((b) => ownedBookToPick(b, topTag, sourceNote));
 
   const purchaseSuggestions: BookSuggestion[] = [];
   const ownedTitles = new Set(ownedBooks.map((b) => b.title));
