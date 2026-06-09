@@ -18,6 +18,8 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     opponentStrategy: "角換わりからの矢倉囲い",
     tags: ["中盤の読み（攻めるか受けるか）"],
     positionCount: 3,
+    hasVoiceInput: true,
+    hasKifuData: false,
     positions: [
       {
         sortOrder: 0,

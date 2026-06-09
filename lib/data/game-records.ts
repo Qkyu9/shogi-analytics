@@ -12,6 +12,10 @@ import {
   bareMigiGyokuToGangi,
   isBareMigiGyokuStrategy,
 } from "@/app/lib/migi-gyoku-strategy";
+import {
+  hasKifuInputData,
+  hasVoiceInputData,
+} from "@/app/lib/record-input-flags";
 import { migrateTagsToCurrentLabels } from "@/app/lib/weakness-tags";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -92,6 +96,8 @@ function toDetail(row: DbRecord): GameRecordDetail {
     opponentRank: row.opponent_rank ?? "",
     tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: positions.length,
+    hasVoiceInput: hasVoiceInputData(row.source_input_text, positions),
+    hasKifuData: hasKifuInputData(row.kifu_text, row.kishin_insight),
     positions,
     kifuText: row.kifu_text ?? undefined,
     kishinInsight: row.kishin_insight ?? undefined,
@@ -129,7 +135,7 @@ export async function listGameRecordSummaries(
   const { data, error } = await supabase
     .from("game_records")
     .select(
-      "id, played_at, venue_type, handicap, player_side, result, my_strategy, opponent_strategy, opponent_rank, tags, game_positions(sort_order)"
+      "id, played_at, venue_type, handicap, player_side, result, my_strategy, opponent_strategy, opponent_rank, tags, source_input_text, kifu_text, kishin_insight, game_positions(sort_order, scene_description, defeat_cause, correct_move, lesson)"
     )
     .eq("user_id", userId)
     .order("played_at", { ascending: false });
@@ -154,6 +160,19 @@ export async function listGameRecordSummaries(
     opponentRank: row.opponent_rank ?? "",
     tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: row.game_positions?.length ?? 0,
+    hasVoiceInput: hasVoiceInputData(
+      row.source_input_text as string | null,
+      row.game_positions as Array<{
+        scene_description?: string;
+        defeat_cause?: string;
+        correct_move?: string;
+        lesson?: string;
+      }>
+    ),
+    hasKifuData: hasKifuInputData(
+      row.kifu_text as string | null,
+      row.kishin_insight as KishinInsight | null
+    ),
   };
   });
 }

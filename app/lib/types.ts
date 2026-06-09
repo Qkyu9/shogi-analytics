@@ -64,6 +64,10 @@ export type GameRecordSummary = {
   opponentRank: string;
   tags: string[];
   positionCount: number;
+  /** 口頭要約（音声入力など）のデータあり */
+  hasVoiceInput: boolean;
+  /** 棋譜データ（棋神示唆含む）あり */
+  hasKifuData: boolean;
 };
 
 export type GameRecordDetail = GameRecordSummary & {
