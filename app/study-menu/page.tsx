@@ -9,7 +9,7 @@ export default function StudyMenuPage() {
       <AppHeader title="学習メニュー" backHref="/" />
       <main className="flex flex-col gap-6 px-4 py-6">
         <p className="text-sm leading-relaxed text-[var(--color-text-sub)]">
-          弱点分析に基づき、限られた時間の中で何に取り組むかを提案します。
+          弱点分析と購入済み棋書に基づき、限られた時間の中で何に取り組むかを提案します。定番書の購入・学習推薦も表示されます。
         </p>
         <StudyMenuView />
         <Link href="/analysis" className="block">

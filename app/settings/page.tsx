@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import { AppHeader } from "@/app/components/layout/AppHeader";
+import { OwnedBooksSettings } from "@/app/components/settings/OwnedBooksSettings";
 import { Card } from "@/app/components/ui/Card";
 
 export default function SettingsPage() {
@@ -17,6 +18,8 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        <OwnedBooksSettings />
+
         <Card>
           <h2 className="text-sm font-semibold">1日の学習時間</h2>
           <p className="mt-2 text-2xl font-bold">60分</p>
@@ -33,7 +36,7 @@ export default function SettingsPage() {
         </Card>
 
         <p className="text-center text-xs text-[var(--color-text-sub)]">
-          将棋 Analytics v0.2
+          将棋 Analytics v0.3
         </p>
       </main>
     </>

@@ -28,7 +28,24 @@ export function StudyMenuCard({
               1日 {item.dailyCount} 問
             </p>
           )}
-          <p className="mt-3 pt-3 text-xs leading-relaxed text-[var(--color-text-sub)]">
+          {item.books && item.books.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {item.books.map((book) => (
+                <li
+                  key={book.bookId}
+                  className="rounded-md bg-[var(--color-bg-sub)] px-2.5 py-2 text-xs"
+                >
+                  <span className="font-medium text-[var(--color-text)]">
+                    『{book.title}』
+                  </span>
+                  <span className="mt-0.5 block text-[var(--color-text-sub)]">
+                    → {book.studyAction}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 border-t border-[var(--color-border)] pt-3 text-xs leading-relaxed text-[var(--color-text-sub)]">
             {item.reason}
           </p>
         </article>

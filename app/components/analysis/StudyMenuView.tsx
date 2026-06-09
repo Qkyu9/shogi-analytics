@@ -1,49 +1,51 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BookSuggestionsPanel } from "@/app/components/analysis/BookSuggestionsPanel";
 import { StudyMenuCard } from "@/app/components/analysis/StudyMenuCard";
-import type { StudyAllocation } from "@/app/lib/types";
-import { computeTagStats } from "@/app/lib/record-stats";
+import { getOwnedBookIds } from "@/app/lib/owned-books-storage";
 import { getAllRecordDetails } from "@/app/lib/record-storage";
-
-const DAILY_STUDY_MINUTES = 60;
+import {
+  buildStudyMenu,
+  DAILY_STUDY_MINUTES,
+  type BookSuggestion,
+  type StudyMenuResult,
+} from "@/app/lib/study-recommendations";
+import type { StudyAllocation } from "@/app/lib/types";
 
 export function StudyMenuView() {
   const [allocations, setAllocations] = useState<StudyAllocation[]>([]);
+  const [ownedBookPicks, setOwnedBookPicks] = useState<BookSuggestion[]>([]);
+  const [purchaseSuggestions, setPurchaseSuggestions] = useState<
+    BookSuggestion[]
+  >([]);
+  const [ownedBookCount, setOwnedBookCount] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    getAllRecordDetails()
-      .then((records) => {
-        const stats = computeTagStats(records);
-        if (stats.length === 0) {
+    Promise.all([getAllRecordDetails(), getOwnedBookIds().catch(() => [])])
+      .then(([records, ownedBookIds]) => {
+        setOwnedBookCount(ownedBookIds.length);
+        const menu = buildStudyMenu(records, ownedBookIds);
+        if (!menu) {
           setAllocations([]);
+          setOwnedBookPicks([]);
+          setPurchaseSuggestions([]);
           setReady(true);
           return;
         }
-        const top = stats[0];
-        setAllocations([
-          {
-            item: "中盤手筋",
-            percentage: 40,
-            reason: `#${top.tag} が最多。記録が増えると提案を精緻化する`,
-          },
-          {
-            item: "実戦",
-            percentage: 35,
-            reason: "対局直後の振り返りとセットで弱点を定着させる",
-          },
-          {
-            item: "詰め将棋",
-            percentage: 25,
-            dailyCount: 5,
-            reason: "短い読みの維持",
-          },
-        ]);
+        applyMenu(menu);
         setReady(true);
       })
       .catch(() => setReady(true));
   }, []);
+
+  const applyMenu = (menu: StudyMenuResult) => {
+    setAllocations(menu.allocations);
+    setOwnedBookPicks(menu.ownedBookPicks);
+    setPurchaseSuggestions(menu.purchaseSuggestions);
+  };
 
   if (!ready) {
     return (
@@ -65,10 +67,25 @@ export function StudyMenuView() {
 
   return (
     <>
+      {ownedBookCount === 0 && (
+        <div className="rounded-lg bg-[var(--color-bg-sub)] p-3 text-xs leading-relaxed text-[var(--color-text-sub)]">
+          設定で購入済みの棋書を登録すると、学習メニューがより具体的になります。
+          <Link href="/settings" className="ml-1 font-medium text-[var(--color-primary)] underline">
+            設定を開く
+          </Link>
+        </div>
+      )}
+
       <StudyMenuCard
         allocations={allocations}
         dailyStudyMinutes={DAILY_STUDY_MINUTES}
       />
+
+      <BookSuggestionsPanel
+        ownedBookPicks={ownedBookPicks}
+        purchaseSuggestions={purchaseSuggestions}
+      />
+
       <p className="text-center text-xs text-[var(--color-text-sub)]">
         配分合計: {totalPercent}%
       </p>

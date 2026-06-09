@@ -72,11 +72,19 @@ export type StrategyStat = {
   latestRecordId: string | null;
 };
 
+export type StudyBookPick = {
+  bookId: string;
+  title: string;
+  studyAction: string;
+  isOwned: boolean;
+};
+
 export type StudyAllocation = {
   item: string;
   percentage: number;
   dailyCount?: number;
   reason: string;
+  books?: StudyBookPick[];
 };
 
 export const VENUE_OPTIONS: { value: VenueType; label: string }[] = [
