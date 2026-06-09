@@ -9,7 +9,7 @@ export const SEED_RECORDS: GameRecordDetail[] = [
     id: "rec-voice-20260608",
     playedAt: "2026-06-08T12:00:00+09:00",
     venueType: "shogi_wars_10min",
-    venueLabel: "将棋ウォーズ 10分切れ負け",
+    venueLabel: "将棋ウォーズ 10切れ",
     handicap: "後手",
     playerSide: "gote",
     result: "win",

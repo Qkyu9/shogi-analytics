@@ -80,7 +80,7 @@ export type StudyAllocation = {
 };
 
 export const VENUE_OPTIONS: { value: VenueType; label: string }[] = [
-  { value: "shogi_wars_10min", label: "将棋ウォーズ 10分切れ負け" },
+  { value: "shogi_wars_10min", label: "将棋ウォーズ 10切れ" },
   { value: "shogi_wars_sprint", label: "将棋ウォーズ スプリント" },
   { value: "kion", label: "棋の音" },
   { value: "other", label: "その他" },
