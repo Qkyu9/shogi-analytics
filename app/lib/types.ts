@@ -37,7 +37,7 @@ export type KishinInsight = {
 export type GameRecordDraft = {
   playedAt: string;
   venueType: VenueType;
-  /** 手合（例: 香落ち下手、後手、平手）。対局形式とは別フィールド */
+  /** 手合（例: 香落ち下手、平手・後手）。対局形式とは別フィールド */
   handicap: string;
   /** 自分の手番。未設定時は手合から推測 */
   playerSide: PlayerSide | null;

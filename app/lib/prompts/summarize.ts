@@ -60,9 +60,9 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 - 将棋ウォーズの対局で段位のみ言及された場合も、venueType が wars なら「ウォーズ」を付ける
 
 ## 手合・先手後手（handicap / playerSide）
-- 将棋ウォーズ・棋の音で駒落ちに言及がなければ handicap は「平手」
-- 「後手」「先手」と明示されたら handicap に「後手」「先手」を入れ、playerSide も sente/gote に対応させる
-- 駒落ちの下手/上手から playerSide を必ず導出する（下手→gote、上手→sente）
+- 将棋ウォーズ・棋の音で駒落ちに言及がなければ handicap は「平手・後手」または「平手・先手」（**平手と手番を1つの handicap 欄に書く**）
+- 駒落ち（香落ち下手など）では上手/下手のみ。先手後手を別途 handicap に書かない（上手=先手はルールで決まる）
+- playerSide は sente/gote として必ず埋める（座標変換・棋譜分析用）。handicap 文字列にも平手の場合は反映する
 
 ## 勝ち局の扱い
 - 勝ち局でも記録する。myStrategy・opponentStrategy・opponentRank は話されていれば必ず埋める
@@ -74,7 +74,7 @@ export const SUMMARIZE_USER_PROMPT = (
   nowJst: string
 ) => `以下は対局直後の振り返りの文字起こしです。構造化要約に変換してください。
 話者は「対局形式・手合 → 相手の段位・級位 → 勝ち負け → 戦型 → …」の順で話すことが多い。
-**対局形式（venueType）と手合（handicap）は必ず分けて記載する。** 棋の音・将棋ウォーズ10切れなどは venueType のみ。香落ち下手・後手・平手・角落ち上手などは handicap のみ（対局形式名は入れない）。
+**対局形式（venueType）と手合（handicap）は必ず分けて記載する。** 棋の音・将棋ウォーズ10切れなどは venueType のみ。平手・後手/平手・先手、香落ち下手、角落ち上手などは handicap のみ（対局形式名は入れない）。
 駒落ちでは上手が先手になる（将棋のルール）。下手なら後手、上手なら先手。playerSide は話されていれば sente/gote、駒落ちで下手/上手のみならそこから推測してよい。
 **playerSide を先に確定してから** positions を書くこと。後手（gote）なら、話者が先手目線で言った座標（例: 九九）を後手目線（例: 1一）に直して要約する。
 勝ち・負けどちらでも myStrategy / opponentStrategy は必ず埋めること。相手の段位・級位は opponentRank に分けて入れる（戦型と混ぜない）。
@@ -91,8 +91,8 @@ ${transcript}
 {
   "playedAt": "ISO8601（未言及なら上記の現在日時）",
   "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか（対局形式のみ。手合は入れない）",
-  "handicap": "手合（将棋ウォーズで駒落ち言及なし→平手。例: 香落ち下手, 後手, 平手, 角落ち上手）",
-  "playerSide": "sente | gote | 空文字（後手/先手・駒落ちの下手/上手から必ず導出）",
+  "handicap": "手合（平手なら平手・後手/平手・先手。駒落ちなら香落ち下手等）",
+  "playerSide": "sente | gote（平手・駒落ちとも必須。handicap と整合させる）",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
   "opponentRank": "相手の段位・級位（例: ウォーズ初段、会館2級。接頭辞付きでそのまま。未言及なら空文字）",

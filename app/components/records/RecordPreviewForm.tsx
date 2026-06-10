@@ -14,6 +14,9 @@ import { KifuPasteArea } from "./KifuPasteArea";
 import { SourceInputCollapsible } from "./SourceInputCollapsible";
 import { TagInput } from "./TagInput";
 import {
+  formatHandicapDisplay,
+  isEvenHandicapWithSide,
+  isKomaochiHandicap,
   PLAYER_SIDE_LABELS,
   resolveHandicapFields,
 } from "@/app/lib/handicap";
@@ -265,12 +268,14 @@ export function RecordPreviewForm({
 
         <label className="text-sm font-semibold">手合</label>
         <input
-          placeholder="例: 香落ち下手、後手、平手、角落ち上手"
-          value={draft.handicap}
+          placeholder="例: 平手・後手、香落ち下手、角落ち上手"
+          value={formatHandicapDisplay(draft.handicap, draft.playerSide)}
           onChange={(e) => updateHandicap(e.target.value)}
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
         />
-        {draft.playerSide && (
+        {draft.playerSide &&
+          isKomaochiHandicap(draft.handicap) &&
+          !isEvenHandicapWithSide(draft.handicap) && (
           <p className="text-xs text-[var(--color-text-sub)]">
             自分の手番: {PLAYER_SIDE_LABELS[draft.playerSide]}
             （駒落ちでは上手が先手になります）

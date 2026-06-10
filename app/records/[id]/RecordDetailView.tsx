@@ -12,7 +12,7 @@ import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
 import { needsKishinInsightRefresh } from "@/app/lib/kishin-insight-backfill";
 import { detailToDraft } from "@/app/lib/record-draft";
 import { deleteRecord, getRecordDetail, updateRecord } from "@/app/lib/record-storage";
-import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
+import { formatHandicapDisplay } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 import { formatDateTime, resultLabel } from "@/app/lib/utils";
 
@@ -114,10 +114,8 @@ export function RecordDetailView({ id }: { id: string }) {
         <p className="mt-1 text-sm">{record.venueLabel}</p>
         {record.handicap.trim() && (
           <p className="mt-1 text-sm text-[var(--color-text-sub)]">
-            手合: {record.handicap}
-            {record.playerSide
-              ? `（${PLAYER_SIDE_LABELS[record.playerSide]}）`
-              : ""}
+            手合:{" "}
+            {formatHandicapDisplay(record.handicap, record.playerSide)}
           </p>
         )}
         <p className="mt-2">
