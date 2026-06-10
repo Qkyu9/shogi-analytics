@@ -11,6 +11,7 @@ import {
   SUMMARIZE_KIFU_SYSTEM_PROMPT,
   SUMMARIZE_KIFU_USER_PROMPT,
 } from "@/app/lib/prompts/summarize-kifu";
+import { sanitizeKishinInsight } from "@/app/lib/kishin-insight-sanitize";
 import type { GameResult, KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
 type SummarizeKifuRequest = {
@@ -75,12 +76,15 @@ function normalizeInsight(
     kifuText
   );
 
-  return {
-    briefSummaries,
-    turningPoints,
-    playerPerspectiveApplied: context.playerSide != null,
-    insightFormatVersion: KISHIN_INSIGHT_FORMAT_VERSION,
-  };
+  return sanitizeKishinInsight(
+    {
+      briefSummaries,
+      turningPoints,
+      playerPerspectiveApplied: context.playerSide != null,
+      insightFormatVersion: KISHIN_INSIGHT_FORMAT_VERSION,
+    },
+    kifuText
+  );
 }
 
 function parseAnalysisContext(

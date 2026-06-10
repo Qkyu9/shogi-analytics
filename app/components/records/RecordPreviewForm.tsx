@@ -297,7 +297,7 @@ export function RecordPreviewForm({
       <section className="flex flex-col gap-3">
         <label className="text-sm font-semibold">相手の段位・級位</label>
         <input
-          placeholder="例: 会館初段、ウォーズ初段"
+          placeholder="例: ウォーズ1級、会館二段"
           value={draft.opponentRank ?? ""}
           onChange={(e) =>
             setDraft((d) => ({ ...d, opponentRank: e.target.value }))

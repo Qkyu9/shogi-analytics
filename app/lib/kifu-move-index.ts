@@ -4,21 +4,29 @@ export function parseKifuMoveIndex(kifuText: string): Map<number, string> {
 
   for (const line of kifuText.split("\n")) {
     const trimmed = line.trim();
-    // 例: "13 ▲７七桂" / "13. ▲37桂" / "13　▲３七桂(00)"
-    const match = trimmed.match(/^(\d+)\s*[.．]?\s*([▲△][^\s]+)/);
-    if (!match) continue;
-
-    const moveNumber = Number(match[1]);
-    const move = match[2].replace(/\([^)]*\)/g, "").trim();
-    if (moveNumber > 0 && move) {
-      index.set(moveNumber, move);
+    const withMark = trimmed.match(
+      /^(\d+)\s*[.．]?\s*([▲△])([^\s(]+)/
+    );
+    if (withMark) {
+      const moveNumber = Number(withMark[1]);
+      const move = `${withMark[2]}${withMark[3]}`.replace(/\([^)]*\)/g, "").trim();
+      if (moveNumber > 0 && move) index.set(moveNumber, move);
+      continue;
     }
+
+    const kifStyle = trimmed.match(/^(\d+)\s*[.．]?\s*(\S+?)(?:\([^)]*\))?/);
+    if (!kifStyle) continue;
+    const body = kifStyle[2].replace(/^[▲△]/, "");
+    if (!body || /^候補|^\*\*/.test(body)) continue;
+    const moveNumber = Number(kifStyle[1]);
+    const side = moveNumber % 2 === 1 ? "▲" : "△";
+    index.set(moveNumber, `${side}${body}`);
   }
 
   return index;
 }
 
-function normalizeMoveToken(move: string): string {
+export function normalizeMoveToken(move: string): string {
   return move
     .replace(/\s+/g, "")
     .replace(/[０-９]/g, (c) =>

@@ -53,6 +53,10 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 ## result
 勝ち・負け・引き分けは文字起こしの内容に従う。
 
+## 段位・級位の表記（opponentRank）
+- **級位**: 算用数字 + 「級」（1級、2級、3級）
+- **段位**: 漢数字 + 「段」（初段、二段、三段）。音声で「2段」と言われても「二段」と書く
+
 ## 勝ち局の扱い
 - 勝ち局でも記録する。myStrategy・opponentStrategy・opponentRank は話されていれば必ず埋める
 - 勝ち局は局面説明・教訓は短くてよい（1局面で可）
@@ -84,7 +88,7 @@ ${transcript}
   "playerSide": "sente | gote | 空文字（先手/後手。駒落ちの下手/上手から推測できる場合は省略可）",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
-  "opponentRank": "相手の段位・級位（例: 会館初段、ウォーズ初段。未言及なら空文字）",
+  "opponentRank": "相手の段位・級位（級は1級・2級、段は初段・二段・三段。未言及なら空文字）",
   "opponentStrategy": "相手の戦型のみ（例: 持久戦矢倉。段位は opponentRank に入れる）",
   "positions": [
     {

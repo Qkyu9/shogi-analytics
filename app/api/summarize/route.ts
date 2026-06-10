@@ -11,6 +11,7 @@ import {
 import { applyDictionaryCorrections } from "@/app/lib/shogi-term-corrections";
 import { resolveHandicapFields } from "@/app/lib/handicap";
 import { normalizeWeaknessTag } from "@/app/lib/weakness-tags";
+import { normalizeRankLabel } from "@/app/lib/rank-notation";
 
 function finalizeText(text: string): string {
   return resolveMigiGyokuInText(applyDictionaryCorrections(text));
@@ -108,7 +109,7 @@ function toDraft(
     result: normalizeResult(raw.result),
     myStrategy: resolveMyStrategy(myStrategyRaw, transcript),
     opponentStrategy: finalizeText(raw.opponentStrategy?.trim() ?? ""),
-    opponentRank: finalizeText(raw.opponentRank?.trim() ?? ""),
+    opponentRank: normalizeRankLabel(finalizeText(raw.opponentRank?.trim() ?? "")),
     positions:
       positions.length > 0
         ? positions
