@@ -20,8 +20,8 @@ export function inferPlayerSideFromText(text: string): PlayerSide | null {
     if (side) return side;
   }
 
-  if (/後手番|後手で|△側|△で/.test(compact)) return "gote";
-  if (/先手番|先手で|▲側|▲で/.test(compact)) return "sente";
+  if (/後手番|後手で|(?:^|[・、,])後手/.test(compact)) return "gote";
+  if (/先手番|先手で|(?:^|[・、,])先手/.test(compact)) return "sente";
 
   return inferPlayerSide(compact);
 }

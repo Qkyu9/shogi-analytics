@@ -56,6 +56,13 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 ## 段位・級位の表記（opponentRank）
 - **級位**: 算用数字 + 「級」（1級、2級、3級）
 - **段位**: 漢数字 + 「段」（初段、二段、三段）。音声で「2段」と言われても「二段」と書く
+- **接頭辞を省略しない**: 音声で「ウォーズ初段」「会館二段」と言われたら、そのまま opponentRank に書く（「初段」だけに短くしない）
+- 将棋ウォーズの対局で段位のみ言及された場合も、venueType が wars なら「ウォーズ」を付ける
+
+## 手合・先手後手（handicap / playerSide）
+- 将棋ウォーズ・棋の音で駒落ちに言及がなければ handicap は「平手」
+- 「後手」「先手」と明示されたら handicap に「後手」「先手」を入れ、playerSide も sente/gote に対応させる
+- 駒落ちの下手/上手から playerSide を必ず導出する（下手→gote、上手→sente）
 
 ## 勝ち局の扱い
 - 勝ち局でも記録する。myStrategy・opponentStrategy・opponentRank は話されていれば必ず埋める
@@ -84,11 +91,11 @@ ${transcript}
 {
   "playedAt": "ISO8601（未言及なら上記の現在日時）",
   "venueType": "shogi_wars_10min | shogi_wars_sprint | kion | other のいずれか（対局形式のみ。手合は入れない）",
-  "handicap": "手合のみ（例: 香落ち下手, 後手, 平手, 角落ち上手。未言及なら空文字）",
-  "playerSide": "sente | gote | 空文字（先手/後手。駒落ちの下手/上手から推測できる場合は省略可）",
+  "handicap": "手合（将棋ウォーズで駒落ち言及なし→平手。例: 香落ち下手, 後手, 平手, 角落ち上手）",
+  "playerSide": "sente | gote | 空文字（後手/先手・駒落ちの下手/上手から必ず導出）",
   "result": "loss | win | draw",
   "myStrategy": "自分の戦型（雁木右玉は六七銀八七金型雁木→四八玉のみ。角換わり・対振り飛車は別名）",
-  "opponentRank": "相手の段位・級位（級は1級・2級、段は初段・二段・三段。未言及なら空文字）",
+  "opponentRank": "相手の段位・級位（例: ウォーズ初段、会館2級。接頭辞付きでそのまま。未言及なら空文字）",
   "opponentStrategy": "相手の戦型のみ（例: 持久戦矢倉。段位は opponentRank に入れる）",
   "positions": [
     {

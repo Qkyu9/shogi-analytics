@@ -9,9 +9,11 @@ import {
   resolveMyStrategy,
 } from "@/app/lib/migi-gyoku-strategy";
 import { applyDictionaryCorrections } from "@/app/lib/shogi-term-corrections";
-import { resolveHandicapFields } from "@/app/lib/handicap";
+import {
+  enrichOpponentRank,
+  resolveHandicapFromSummary,
+} from "@/app/lib/transcript-inference";
 import { normalizeWeaknessTag } from "@/app/lib/weakness-tags";
-import { normalizeRankLabel } from "@/app/lib/rank-notation";
 
 function finalizeText(text: string): string {
   return resolveMigiGyokuInText(applyDictionaryCorrections(text));
@@ -96,20 +98,29 @@ function toDraft(
     }));
 
   const myStrategyRaw = raw.myStrategy?.trim() ?? "";
-  const { handicap, playerSide } = resolveHandicapFields(
+  const venueType = normalizeVenue(raw.venueType) ?? fallbackVenue ?? "other";
+  const transcriptText = transcript ?? "";
+
+  const { handicap, playerSide } = resolveHandicapFromSummary(
     raw.handicap?.trim() ?? "",
-    raw.playerSide
+    raw.playerSide,
+    transcriptText,
+    venueType
   );
 
   return {
     playedAt: normalizePlayedAt(raw.playedAt),
-    venueType: normalizeVenue(raw.venueType) ?? fallbackVenue ?? "other",
+    venueType,
     handicap,
     playerSide,
     result: normalizeResult(raw.result),
     myStrategy: resolveMyStrategy(myStrategyRaw, transcript),
     opponentStrategy: finalizeText(raw.opponentStrategy?.trim() ?? ""),
-    opponentRank: normalizeRankLabel(finalizeText(raw.opponentRank?.trim() ?? "")),
+    opponentRank: enrichOpponentRank(
+      raw.opponentRank?.trim() ?? "",
+      transcriptText,
+      venueType
+    ),
     positions:
       positions.length > 0
         ? positions

@@ -6,23 +6,7 @@ import {
   getAllRecordSummaries,
   getRecordDetail,
 } from "@/app/lib/record-storage";
-
-/** 端的なまとめ7項目目、または最後の教訓行を取得 */
-function pickLessonHeadline(
-  briefSummaries: string[] | undefined,
-  fallbackLesson?: string
-): string | null {
-  const seventh = briefSummaries?.[6]?.trim();
-  if (seventh) return seventh;
-
-  const lastSummary = [...(briefSummaries ?? [])]
-    .reverse()
-    .find((s) => s.trim())?.trim();
-  if (lastSummary) return lastSummary;
-
-  const lesson = fallbackLesson?.trim();
-  return lesson || null;
-}
+import { pickVerbalLesson } from "@/app/lib/transcript-inference";
 
 export function HomeLessonHeadline() {
   const [headline, setHeadline] = useState<{
@@ -41,10 +25,7 @@ export function HomeLessonHeadline() {
           const detail = await getRecordDetail(summary.id);
           if (!detail) continue;
 
-          const text = pickLessonHeadline(
-            detail.kishinInsight?.briefSummaries,
-            detail.positions.at(-1)?.lesson
-          );
+          const text = pickVerbalLesson(detail.positions);
           if (text) {
             setHeadline({ text, recordId: detail.id });
             return;
@@ -65,7 +46,7 @@ export function HomeLessonHeadline() {
         aria-hidden
       />
       <p className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-text-sub)] uppercase">
-        今日の教訓
+        直近の教訓
       </p>
       <Link
         href={`/records/${headline.recordId}`}
