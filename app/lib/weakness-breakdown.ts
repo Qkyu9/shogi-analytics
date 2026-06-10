@@ -16,6 +16,7 @@ export type WeaknessBreakdown = {
   metrics: WeaknessBreakdownMetric[];
   /** 棋譜はあるが集計できなかった対局数 */
   skippedGames?: number;
+  statusMessage?: string;
 };
 
 export function supportsWeaknessBreakdown(tag: string): boolean {
@@ -47,7 +48,7 @@ export function getWeaknessBreakdown(
       metrics: [
         { label: "不要な受け", count: 0, rate: 0 },
         { label: "主導権喪失", count: 0, rate: 0 },
-        { label: "受け強要率（AI推測）", count: 0, rate: 0 },
+        { label: "相手攻め後の受け（AI推測）", count: 0, rate: 0 },
       ],
     };
   }
@@ -57,6 +58,7 @@ export function getWeaknessBreakdown(
     gamesAnalyzed: agg.gamesAnalyzed,
     analyzedUserMoves: agg.analyzedUserMoves,
     skippedGames: Math.max(0, kifuCount - agg.gamesAnalyzed),
+    statusMessage: agg.statusMessage,
     metrics: [
       {
         label: "不要な受け",
@@ -71,10 +73,10 @@ export function getWeaknessBreakdown(
         hint: "有利から評価急落",
       },
       {
-        label: "受け強要率（AI推測）",
+        label: "相手攻め後の受け（AI推測）",
         count: agg.forcedDefenseInferred,
         rate: agg.forcedDefenseRate,
-        hint: "攻め連続で評価維持",
+        hint: "相手攻めの後に受け・守り",
       },
     ],
   };

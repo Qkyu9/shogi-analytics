@@ -75,6 +75,11 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
       continue;
     }
 
+    if (/^#/.test(line) && isEngineCommentLine(line)) {
+      applyEngineComment(current, line);
+      continue;
+    }
+
     if (isEngineCommentLine(line)) {
       applyEngineComment(current, line);
       if (/^[*＊]/.test(line) && /Engine|解析/.test(line)) {

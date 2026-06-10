@@ -56,6 +56,9 @@ export function MidgameStyleAnalysis({
     linkedWeaknessTag === MIDGAME_READ_TAG ||
     linkedWeaknessTag?.includes("中盤の読み");
 
+  const showStatus =
+    metrics.dataStatus !== "ok" && metrics.statusMessage.length > 0;
+
   const metricsList = [
     {
       label: compact
@@ -63,19 +66,21 @@ export function MidgameStyleAnalysis({
         : "不要な受け（候補手より評価が低い選択）",
       count: metrics.unnecessaryDefense,
       rate: metrics.unnecessaryDefenseRate,
-      hint: "自分の手で、候補1より評価が大きく低い選択をした回数の割合です。",
+      hint: "候補1より評価が低い手、または候補手と異なる手で評価が落ちた回数です。",
     },
     {
-      label: compact ? "主導権喪失" : "主導権喪失（有利から評価急落）",
+      label: compact ? "主導権喪失" : "主導権喪失（評価急落）",
       count: metrics.initiativeLoss,
       rate: metrics.initiativeLossRate,
-      hint: "自分有利の局面から、1手で評価が大きく落ちた回数の割合です。",
+      hint: "自分の手で評価が大きく落ちた回数の割合です。",
     },
     {
-      label: "受け強要率（AI推測）",
+      label: compact
+        ? "相手攻め後の受け"
+        : "相手攻め後の受け（AI推測）",
       count: metrics.forcedDefenseInferred,
       rate: metrics.forcedDefenseRate,
-      hint: "攻め手を連続して指し、評価を維持できた区間の割合です（攻めの連続区間を分母）。",
+      hint: "相手の攻めの後に、受け・守りの手を指した回数の割合です。",
     },
   ];
 
@@ -86,6 +91,11 @@ export function MidgameStyleAnalysis({
           棋譜分析（{metrics.gamesAnalyzed}局・自分の手
           {metrics.analyzedUserMoves}手）
         </p>
+        {showStatus && (
+          <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-400">
+            {metrics.statusMessage}
+          </p>
+        )}
         <ul className="flex flex-col gap-1.5">
           {metricsList.map((m) => (
             <MetricRow key={m.label} {...m} compact />
@@ -109,8 +119,15 @@ export function MidgameStyleAnalysis({
         <p className="mt-1 text-xs text-[var(--color-text-sub)]">
           分析対象: {metrics.gamesAnalyzed}局（自分の手{" "}
           {metrics.analyzedUserMoves}手）
+          {metrics.usedInsightFallback ? "・棋神示唆から推定" : ""}
         </p>
       </div>
+
+      {showStatus && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          {metrics.statusMessage}
+        </div>
+      )}
 
       <ul className="flex flex-col gap-4">
         {metricsList.map((m) => (
@@ -119,8 +136,8 @@ export function MidgameStyleAnalysis({
       </ul>
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
-        ※ 棋譜に評価値・候補手があり、先手/後手が記録された対局のみ対象です。
-        受け強要率は攻めの連続と評価推移からの推測値です。
+        ※ 棋譜に評価値がある対局を優先して集計します。評価値が読めない場合は棋神示唆の要所データを使います。
+        相手攻め後の受けは、相手の攻め手のあとに受け・守りの手を指した回数です。
       </p>
     </section>
   );

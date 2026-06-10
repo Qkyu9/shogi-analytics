@@ -211,5 +211,6 @@ export function isEngineCommentLine(line: string): boolean {
   if (/^評価/.test(trimmed)) return true;
   if (/^候補[１1]/.test(trimmed)) return true;
   if (/^深さ|^ノード|^時間/.test(trimmed)) return true;
+  if (/^#/.test(trimmed) && /評価|候補|読み筋/.test(trimmed)) return true;
   return false;
 }

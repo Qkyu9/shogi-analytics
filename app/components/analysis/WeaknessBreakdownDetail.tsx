@@ -75,6 +75,11 @@ export function WeaknessBreakdownDetail({
           </li>
         ))}
       </ul>
+      {!compact && breakdown.statusMessage && (
+        <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+          {breakdown.statusMessage}
+        </p>
+      )}
       {!compact && breakdown.skippedGames != null && breakdown.skippedGames > 0 && (
         <p className="text-[10px] text-[var(--color-text-sub)]">
           ※ {breakdown.skippedGames}局は手番未記録などのため集計対象外
