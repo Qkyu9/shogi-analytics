@@ -103,17 +103,25 @@ export function AnalysisView() {
         </p>
       ) : (
         <>
-          <WeaknessRanking stats={stats} lowDataWarning={lowDataWarning} />
+          {midgameStyleMetrics && (
+            <MidgameStyleAnalysis
+              metrics={midgameStyleMetrics}
+              linkedWeaknessTag={topWeaknessTag}
+            />
+          )}
 
           {midgameStyleMetrics && (
-            <>
-              <div className="my-2 h-px bg-[var(--color-border)]" />
-              <MidgameStyleAnalysis
-                metrics={midgameStyleMetrics}
-                linkedWeaknessTag={topWeaknessTag}
-              />
-            </>
+            <div className="my-2 h-px bg-[var(--color-border)]" />
           )}
+
+          <WeaknessRanking stats={stats} lowDataWarning={lowDataWarning} />
+
+          <div className="my-2 h-px bg-[var(--color-border)]" />
+
+          <MatchConditionAnalysis
+            playerSideStats={playerSideStats}
+            handicapStats={handicapStats}
+          />
 
           <div className="my-2 h-px bg-[var(--color-border)]" />
 
@@ -129,13 +137,6 @@ export function AnalysisView() {
             title="相手の戦型（対局数順）"
             stats={opponentStrategyStats}
             emptyMessage="この期間に相手の戦型が記録された対局がありません。"
-          />
-
-          <div className="my-2 h-px bg-[var(--color-border)]" />
-
-          <MatchConditionAnalysis
-            playerSideStats={playerSideStats}
-            handicapStats={handicapStats}
           />
         </>
       )}

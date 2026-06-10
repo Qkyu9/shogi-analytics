@@ -1,4 +1,8 @@
-import { PLAYER_SIDE_LABELS } from "./handicap";
+import {
+  isEvenHandicapWithSide,
+  normalizeHandicapLabel,
+  PLAYER_SIDE_LABELS,
+} from "./handicap";
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
 import { normalizeWeaknessTag } from "./weakness-tags";
 
@@ -112,8 +116,16 @@ export function computePlayerSideStats(
 export function computeHandicapStats(
   records: GameRecordDetail[]
 ): StrategyStat[] {
-  const withHandicap = records.filter((r) => r.handicap.trim());
-  return computeStrategyStats(withHandicap, (r) => r.handicap.trim());
+  const withHandicap = records.filter((r) => {
+    const label = normalizeHandicapLabel(r.handicap.trim());
+    if (!label) return false;
+    if (label === "平手") return false;
+    if (isEvenHandicapWithSide(label)) return false;
+    return true;
+  });
+  return computeStrategyStats(withHandicap, (r) =>
+    normalizeHandicapLabel(r.handicap.trim())
+  );
 }
 
 export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
