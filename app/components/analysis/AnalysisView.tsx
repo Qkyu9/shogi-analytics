@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { MidgameStyleAnalysis } from "@/app/components/analysis/MidgameStyleAnalysis";
 import { AnalysisPeriodTabs } from "@/app/components/analysis/AnalysisPeriodTabs";
 import { MatchConditionAnalysis } from "@/app/components/analysis/MatchConditionAnalysis";
 import { StrategyRanking } from "@/app/components/analysis/StrategyRanking";
 import { WeaknessRanking } from "@/app/components/analysis/WeaknessRanking";
 import { Button } from "@/app/components/ui/Button";
-import { aggregateMidgameStyleMetrics } from "@/app/lib/midgame-style-analysis";
 import {
   computeHandicapStats,
   computeMyStrategyStats,
@@ -19,7 +17,7 @@ import {
   type AnalysisPeriod,
 } from "@/app/lib/record-stats";
 import { getAllRecordDetails } from "@/app/lib/record-storage";
-import type { GameRecordDetail, StrategyStat, TagStat } from "@/app/lib/types";
+import type { GameRecordDetail } from "@/app/lib/types";
 
 export function AnalysisView() {
   const [allRecords, setAllRecords] = useState<GameRecordDetail[]>([]);
@@ -61,13 +59,6 @@ export function AnalysisView() {
     [filteredRecords]
   );
 
-  const midgameStyleMetrics = useMemo(
-    () => aggregateMidgameStyleMetrics(filteredRecords),
-    [filteredRecords]
-  );
-
-  const topWeaknessTag = stats[0]?.tag ?? null;
-
   if (!ready) {
     return (
       <p className="text-center text-sm text-[var(--color-text-sub)]">
@@ -103,17 +94,11 @@ export function AnalysisView() {
         </p>
       ) : (
         <>
-          <WeaknessRanking stats={stats} lowDataWarning={lowDataWarning} />
-
-          {midgameStyleMetrics && (
-            <>
-              <div className="my-2 h-px bg-[var(--color-border)]" />
-              <MidgameStyleAnalysis
-                metrics={midgameStyleMetrics}
-                linkedWeaknessTag={topWeaknessTag}
-              />
-            </>
-          )}
+          <WeaknessRanking
+            stats={stats}
+            records={filteredRecords}
+            lowDataWarning={lowDataWarning}
+          />
 
           <div className="my-2 h-px bg-[var(--color-border)]" />
 

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { HomeWeaknessCard } from "@/app/components/home/HomeWeaknessCard";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { RecordsView } from "@/app/components/records/RecordsView";
-import { Button } from "@/app/components/ui/Button";
 import { FeaturePhotoCard } from "@/app/components/ui/FeaturePhotoCard";
 
 export default function HomePage() {
@@ -10,12 +9,6 @@ export default function HomePage() {
     <>
       <AppHeader title="ホーム" actionHref="/settings" />
       <main className="flex flex-col gap-8 px-4 py-6">
-        <section>
-          <Link href="/records/new" className="block">
-            <Button fullWidth>対局を記録する</Button>
-          </Link>
-        </section>
-
         <HomeWeaknessCard />
 
         <section className="grid grid-cols-2 gap-3">
