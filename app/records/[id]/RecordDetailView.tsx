@@ -9,7 +9,7 @@ import { Button } from "@/app/components/ui/Button";
 import { TagChip } from "@/app/components/ui/TagChip";
 import { buildVerbalSummaryText } from "@/app/lib/kifu-player-context";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
-import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
+import { needsKishinInsightRefresh } from "@/app/lib/kishin-insight-backfill";
 import { detailToDraft } from "@/app/lib/record-draft";
 import { deleteRecord, getRecordDetail, updateRecord } from "@/app/lib/record-storage";
 import { PLAYER_SIDE_LABELS } from "@/app/lib/handicap";
@@ -47,17 +47,9 @@ export function RecordDetailView({ id }: { id: string }) {
     const kifu = record.kifuText?.trim();
     if (!kifu) return;
 
-    const needsBackfill = !record.kishinInsight;
-    const needsPerspectiveRefresh =
-      Boolean(record.kishinInsight) &&
-      Boolean(record.playerSide) &&
-      !record.kishinInsight?.playerPerspectiveApplied;
-    const needsFormatRefresh =
-      Boolean(record.kishinInsight) &&
-      (record.kishinInsight?.insightFormatVersion ?? 1) <
-        KISHIN_INSIGHT_FORMAT_VERSION;
+    const needsBackfill = needsKishinInsightRefresh(record);
 
-    if (!needsBackfill && !needsPerspectiveRefresh && !needsFormatRefresh) {
+    if (!needsBackfill) {
       return;
     }
     if (backfillStartedRef.current) return;
