@@ -46,9 +46,9 @@ export function getWeaknessBreakdown(
       analyzedUserMoves: 0,
       skippedGames: kifuCount,
       metrics: [
-        { label: "不要な受け", count: 0, rate: 0 },
-        { label: "主導権喪失", count: 0, rate: 0 },
-        { label: "相手攻め後の受け（AI推測）", count: 0, rate: 0 },
+        { label: "受けを強要する好手", count: 0, rate: 0 },
+        { label: "劣勢での悪手", count: 0, rate: 0 },
+        { label: "優勢での悪手", count: 0, rate: 0 },
       ],
     };
   }
@@ -61,22 +61,22 @@ export function getWeaknessBreakdown(
     statusMessage: agg.statusMessage,
     metrics: [
       {
-        label: "不要な受け",
-        count: agg.unnecessaryDefense,
-        rate: agg.unnecessaryDefenseRate,
-        hint: "候補1より評価が低い選択",
+        label: "受けを強要する好手",
+        count: agg.forcingAttackGood,
+        rate: agg.forcingAttackGoodRate,
+        hint: "攻め連続で評価維持",
       },
       {
-        label: "主導権喪失",
-        count: agg.initiativeLoss,
-        rate: agg.initiativeLossRate,
-        hint: "有利から評価急落",
+        label: "劣勢での悪手",
+        count: agg.badMoveInDisadvantage,
+        rate: agg.badMoveInDisadvantageRate,
+        hint: "劣勢からさらに失点",
       },
       {
-        label: "相手攻め後の受け（AI推測）",
-        count: agg.forcedDefenseInferred,
-        rate: agg.forcedDefenseRate,
-        hint: "相手攻めの後に受け・守り",
+        label: "優勢での悪手",
+        count: agg.badMoveInAdvantage,
+        rate: agg.badMoveInAdvantageRate,
+        hint: "優勢から互角以下へ",
       },
     ],
   };

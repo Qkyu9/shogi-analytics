@@ -61,26 +61,22 @@ export function MidgameStyleAnalysis({
 
   const metricsList = [
     {
-      label: compact
-        ? "不要な受け"
-        : "不要な受け（候補手より評価が低い選択）",
-      count: metrics.unnecessaryDefense,
-      rate: metrics.unnecessaryDefenseRate,
-      hint: "候補1より評価が低い手、または候補手と異なる手で評価が落ちた回数です。",
+      label: "受けを強要する好手",
+      count: metrics.forcingAttackGood,
+      rate: metrics.forcingAttackGoodRate,
+      hint: "攻め手を連続して指し、評価を維持できた区間（相手に受けを強要できた好手）の割合です。",
     },
     {
-      label: compact ? "主導権喪失" : "主導権喪失（評価急落）",
-      count: metrics.initiativeLoss,
-      rate: metrics.initiativeLossRate,
-      hint: "自分の手で評価が大きく落ちた回数の割合です。",
+      label: "劣勢での悪手",
+      count: metrics.badMoveInDisadvantage,
+      rate: metrics.badMoveInDisadvantageRate,
+      hint: "すでに劣勢の局面から、さらに評価を落としてしまった手の割合です。",
     },
     {
-      label: compact
-        ? "相手攻め後の受け"
-        : "相手攻め後の受け（AI推測）",
-      count: metrics.forcedDefenseInferred,
-      rate: metrics.forcedDefenseRate,
-      hint: "相手の攻めの後に、受け・守りの手を指した回数の割合です。",
+      label: "優勢での悪手",
+      count: metrics.badMoveInAdvantage,
+      rate: metrics.badMoveInAdvantageRate,
+      hint: "優勢の局面から、互角以下に評価を落としてしまった手の割合です。",
     },
   ];
 
@@ -88,7 +84,7 @@ export function MidgameStyleAnalysis({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-[10px] text-[var(--color-text-sub)]">
-          棋譜分析（{metrics.gamesAnalyzed}局・自分の手
+          局面分析（{metrics.gamesAnalyzed}局・自分の手
           {metrics.analyzedUserMoves}手）
         </p>
         {showStatus && (
@@ -109,12 +105,12 @@ export function MidgameStyleAnalysis({
     <section className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-sub)] p-4">
       <div>
         <h2 className="text-sm font-semibold text-[var(--color-text)]">
-          中盤棋風分析
+          局面ごとの好手・悪手
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-sub)]">
           {showLinkNote
-            ? `弱点「${MIDGAME_READ_TAG}」と関連する傾向を、棋譜の評価値・候補手から自動集計しています。`
-            : "棋譜データがある対局から、攻めと受けの傾向を自動集計しています。"}
+            ? `弱点「${MIDGAME_READ_TAG}」と関連する傾向を、棋譜の評価値から自動集計しています。`
+            : "棋譜データがある対局から、好手（相手に攻めを強要）と悪手（優勢・劣勢での失点）を集計しています。"}
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-sub)]">
           分析対象: {metrics.gamesAnalyzed}局（自分の手{" "}
@@ -137,7 +133,7 @@ export function MidgameStyleAnalysis({
 
       <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
         ※ 棋譜に評価値がある対局を優先して集計します。評価値が読めない場合は棋神示唆の要所データを使います。
-        相手攻め後の受けは、相手の攻め手のあとに受け・守りの手を指した回数です。
+        好手は攻めの連続で評価を維持できた区間、悪手は優勢・劣勢それぞれで評価を悪化させた手です。
       </p>
     </section>
   );
