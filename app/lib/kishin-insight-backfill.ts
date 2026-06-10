@@ -1,7 +1,7 @@
-import { resolveHandicapFields } from "@/app/lib/handicap";
 import { buildVerbalSummaryText } from "@/app/lib/kifu-player-context";
 import { generateKishinInsight } from "@/app/lib/kishin-insight-client";
 import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
+import { resolvePlayerSideForRecord } from "@/app/lib/player-side-resolve";
 import { detailToDraft } from "@/app/lib/record-draft";
 import {
   getAllRecordDetails,
@@ -48,10 +48,7 @@ export async function backfillOutdatedKishinInsights(): Promise<number> {
   let updated = 0;
   for (const record of targets) {
     const kifu = record.kifuText!.trim();
-    const { playerSide } = resolveHandicapFields(
-      record.handicap ?? "",
-      record.playerSide
-    );
+    const playerSide = resolvePlayerSideForRecord(record);
     try {
       const insight = await generateKishinInsight(kifu, {
         playerSide,

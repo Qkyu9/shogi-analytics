@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeMidgameStyleCard } from "@/app/components/home/HomeMidgameStyleCard";
 import { HomeWeaknessCard } from "@/app/components/home/HomeWeaknessCard";
 import { AppHeader } from "@/app/components/layout/AppHeader";
 import { RecordsView } from "@/app/components/records/RecordsView";
@@ -10,6 +11,7 @@ export default function HomePage() {
       <AppHeader title="ホーム" actionHref="/settings" />
       <main className="flex flex-col gap-8 px-4 py-6">
         <HomeWeaknessCard />
+        <HomeMidgameStyleCard />
 
         <section className="grid grid-cols-2 gap-3">
           <Link href="/analysis">

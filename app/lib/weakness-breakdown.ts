@@ -14,10 +14,16 @@ export type WeaknessBreakdown = {
   gamesAnalyzed: number;
   analyzedUserMoves: number;
   metrics: WeaknessBreakdownMetric[];
+  /** 棋譜はあるが集計できなかった対局数 */
+  skippedGames?: number;
 };
 
 export function supportsWeaknessBreakdown(tag: string): boolean {
   return tag === MIDGAME_READ_TAG || tag.includes("中盤の読み");
+}
+
+function countKifuRecords(records: GameRecordDetail[]): number {
+  return records.filter((r) => r.kifuText?.trim()).length;
 }
 
 /** 弱点タグごとの棋譜ベース内訳（将来タグを追加可能） */
@@ -27,13 +33,30 @@ export function getWeaknessBreakdown(
 ): WeaknessBreakdown | null {
   if (!supportsWeaknessBreakdown(tag)) return null;
 
+  const kifuCount = countKifuRecords(records);
+  if (kifuCount === 0) return null;
+
   const agg = aggregateMidgameStyleMetrics(records);
-  if (!agg) return null;
+
+  if (!agg) {
+    return {
+      tag: MIDGAME_READ_TAG,
+      gamesAnalyzed: 0,
+      analyzedUserMoves: 0,
+      skippedGames: kifuCount,
+      metrics: [
+        { label: "不要な受け", count: 0, rate: 0 },
+        { label: "主導権喪失", count: 0, rate: 0 },
+        { label: "受け強要率（AI推測）", count: 0, rate: 0 },
+      ],
+    };
+  }
 
   return {
     tag: MIDGAME_READ_TAG,
     gamesAnalyzed: agg.gamesAnalyzed,
     analyzedUserMoves: agg.analyzedUserMoves,
+    skippedGames: Math.max(0, kifuCount - agg.gamesAnalyzed),
     metrics: [
       {
         label: "不要な受け",

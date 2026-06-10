@@ -6,7 +6,7 @@ import {
   toUserEval,
   type ParsedKifuMove,
 } from "@/app/lib/kifu-eval-parse";
-import { resolveHandicapFields } from "@/app/lib/handicap";
+import { resolvePlayerSideForRecord } from "@/app/lib/player-side-resolve";
 import type { PlayerSide } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 
@@ -52,10 +52,7 @@ export function analyzeMidgameStyleForRecord(
   record: GameRecordDetail
 ): MidgameStyleRecordMetrics | null {
   const kifu = record.kifuText?.trim();
-  const { playerSide } = resolveHandicapFields(
-    record.handicap ?? "",
-    record.playerSide
-  );
+  const playerSide = resolvePlayerSideForRecord(record);
   if (!kifu || !playerSide) return null;
 
   const moves = parseKifuWithEvals(kifu);

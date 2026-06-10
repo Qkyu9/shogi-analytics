@@ -17,44 +17,123 @@ function parseEvalToken(text: string): number | null {
   if (Number.isNaN(v)) return null;
   // 歩換算（±2以下）はセンチポーン相当に換算
   if (Math.abs(v) <= 20 && !Number.isInteger(v)) return Math.round(v * 100);
-  if (Math.abs(v) <= 20 && String(m[1]).includes(".")) return Math.round(v * 100);
+  if (Math.abs(v) <= 20 && String(m[1]).includes("."))
+    return Math.round(v * 100);
   return Math.round(v);
+}
+
+function sideFromMoveNumber(moveNumber: number): "sente" | "gote" {
+  return moveNumber % 2 === 1 ? "sente" : "gote";
+}
+
+function formatMove(sideMark: "▲" | "△", body: string): string {
+  return `${sideMark}${body.replace(/^[▲△]/, "")}`;
+}
+
+function parseMoveLine(line: string): Omit<ParsedKifuMove, "evalAfter" | "candidate1Move" | "candidate1Eval"> | null {
+  const withMark = line.match(
+    /^(\d+)\s*[.．]?\s*([▲△])\s*(\S+?)(?:\([^)]*\))?/
+  );
+  if (withMark) {
+    const moveNumber = Number(withMark[1]);
+    const mark = withMark[2] as "▲" | "△";
+    return {
+      moveNumber,
+      side: mark === "▲" ? "sente" : "gote",
+      move: formatMove(mark, withMark[3]),
+    };
+  }
+
+  const kifStyle = line.match(/^(\d+)\s*[.．]?\s*(\S+?)(?:\([^)]*\))?/);
+  if (kifStyle) {
+    const moveNumber = Number(kifStyle[1]);
+    const body = kifStyle[2].replace(/^[▲△]/, "");
+    if (!body || /^候補/.test(body)) return null;
+    const side = sideFromMoveNumber(moveNumber);
+    const mark = side === "sente" ? "▲" : "△";
+    return {
+      moveNumber,
+      side,
+      move: formatMove(mark, body),
+    };
+  }
+
+  return null;
+}
+
+function parseInlineEval(line: string): number | null {
+  const afterMove = line.match(
+    /\)\s*([+\-]?\d+(?:\.\d+)?)\s*$/
+  );
+  if (afterMove) return parseEvalToken(afterMove[1]);
+
+  const trailing = line.match(/\s([+\-]?\d+(?:\.\d+)?)\s*$/);
+  if (trailing) return parseEvalToken(trailing[1]);
+
+  return null;
+}
+
+function parseCandidateLine(line: string): {
+  move: string;
+  eval: number | null;
+} | null {
+  const match = line.match(
+    /候補[１1]?\s*[:：]?\s*([▲△]?\S+?)(?:\([^)]*\))?\s*([+\-]?\d+(?:\.\d+)?)?/
+  );
+  if (!match) return null;
+
+  let move = match[1].trim();
+  if (!move) return null;
+  if (!/^[▲△]/.test(move)) {
+    move = `▲${move}`;
+  }
+
+  return {
+    move,
+    eval: match[2] ? parseEvalToken(match[2]) : null,
+  };
 }
 
 /** 棋神棋譜から手数・評価・候補1を抽出 */
 export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
   const moves: ParsedKifuMove[] = [];
   let current: ParsedKifuMove | null = null;
+  const lines = kifuText.split("\n");
 
-  for (const rawLine of kifuText.split("\n")) {
-    const line = rawLine.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line) continue;
 
-    const moveMatch = line.match(
-      /^(\d+)\s+([▲△])\s*(\S+?)(?:\([^)]*\))?(?:\s+([+\-]?\d+(?:\.\d+)?))?/
-    );
-    if (moveMatch) {
+    const parsedMove = parseMoveLine(line);
+    if (parsedMove) {
       if (current) moves.push(current);
       current = {
-        moveNumber: Number(moveMatch[1]),
-        side: moveMatch[2] === "▲" ? "sente" : "gote",
-        move: `${moveMatch[2]}${moveMatch[3]}`,
-        evalAfter: moveMatch[4] ? parseEvalToken(moveMatch[4]) : null,
+        ...parsedMove,
+        evalAfter: parseInlineEval(line),
         candidate1Move: null,
         candidate1Eval: null,
       };
+
+      if (current.evalAfter == null) {
+        const next = lines[i + 1]?.trim() ?? "";
+        if (/^[+\-]?\d+(?:\.\d+)?$/.test(next)) {
+          current.evalAfter = parseEvalToken(next);
+          i++;
+        }
+      }
       continue;
     }
 
     if (!current) continue;
 
-    const candMatch = line.match(
-      /候補1?\s*([▲△]\S+?)(?:\([^)]*\))?\s+([+\-]?\d+(?:\.\d+)?)/
-    );
-    if (candMatch) {
-      current.candidate1Move = candMatch[1];
-      current.candidate1Eval = parseEvalToken(candMatch[2]);
-    } else if (current.evalAfter == null) {
+    const candidate = parseCandidateLine(line);
+    if (candidate) {
+      current.candidate1Move = candidate.move;
+      current.candidate1Eval = candidate.eval;
+      continue;
+    }
+
+    if (current.evalAfter == null) {
       const evalOnly = parseEvalToken(line);
       if (evalOnly != null && /^[+\-]?\d/.test(line)) {
         current.evalAfter = evalOnly;

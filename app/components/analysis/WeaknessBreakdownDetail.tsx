@@ -75,6 +75,11 @@ export function WeaknessBreakdownDetail({
           </li>
         ))}
       </ul>
+      {!compact && breakdown.skippedGames != null && breakdown.skippedGames > 0 && (
+        <p className="text-[10px] text-[var(--color-text-sub)]">
+          ※ {breakdown.skippedGames}局は手番未記録などのため集計対象外
+        </p>
+      )}
       {!compact && (
         <p className="text-[10px] leading-relaxed text-[var(--color-text-sub)]">
           ※ 棋譜に評価・候補手があり先手/後手が記録された対局が対象
