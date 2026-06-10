@@ -1,11 +1,11 @@
 import {
-  extractMarkedMoves,
   isActualMoveAt,
   isCandidateForMove,
   moveExistsInKifu,
   parseKifuEngineFacts,
   type KifuEngineFacts,
 } from "@/app/lib/kifu-engine-facts";
+import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
 import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
 const MOVE_NUM_RE = /(\d+)\s*手目/g;

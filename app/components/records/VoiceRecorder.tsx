@@ -52,7 +52,7 @@ type RecordingSignal = "checking" | "receiving" | "warn-limit";
 const SPEAKING_GUIDE_ITEMS = [
   {
     label: "対局形式・手合",
-    example: "例）棋の音・香落ち下手、将棋ウォーズ10切れ・平手・後手",
+    example: "例）棋の音・香落ち下手、将棋ウォーズ10切れ・後手",
   },
   { label: "相手の段位・級位", example: "例）ウォーズ1級、会館二段" },
   { label: "勝ち負け", example: "例）負け、勝ち" },

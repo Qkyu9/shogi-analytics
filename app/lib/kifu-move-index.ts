@@ -1,26 +1,14 @@
+import { parseNumberedMoveLine } from "@/app/lib/kifu-line-parse";
+
 /** 棋神棋譜テキストから手数→指し手の対応表を抽出（事実照合用） */
 export function parseKifuMoveIndex(kifuText: string): Map<number, string> {
   const index = new Map<number, string>();
 
   for (const line of kifuText.split("\n")) {
-    const trimmed = line.trim();
-    const withMark = trimmed.match(
-      /^(\d+)\s*[.．]?\s*([▲△])([^\s(]+)/
-    );
-    if (withMark) {
-      const moveNumber = Number(withMark[1]);
-      const move = `${withMark[2]}${withMark[3]}`.replace(/\([^)]*\)/g, "").trim();
-      if (moveNumber > 0 && move) index.set(moveNumber, move);
-      continue;
+    const parsed = parseNumberedMoveLine(line.trim());
+    if (parsed && parsed.moveNumber > 0) {
+      index.set(parsed.moveNumber, parsed.move);
     }
-
-    const kifStyle = trimmed.match(/^(\d+)\s*[.．]?\s*(\S+?)(?:\([^)]*\))?/);
-    if (!kifStyle) continue;
-    const body = kifStyle[2].replace(/^[▲△]/, "");
-    if (!body || /^候補|^\*\*/.test(body)) continue;
-    const moveNumber = Number(kifStyle[1]);
-    const side = moveNumber % 2 === 1 ? "▲" : "△";
-    index.set(moveNumber, `${side}${body}`);
   }
 
   return index;

@@ -1,4 +1,12 @@
 import type { PlayerSide } from "@/app/lib/handicap";
+import {
+  extractMarkedMoves,
+  parseCandidateLine,
+  parseEngineEvalLine,
+  parseEvalToken,
+  parseInlineEval,
+  parseNumberedMoveLine,
+} from "@/app/lib/kifu-line-parse";
 
 export type ParsedKifuMove = {
   moveNumber: number;
@@ -10,133 +18,90 @@ export type ParsedKifuMove = {
   candidate1Eval: number | null;
 };
 
-function parseEvalToken(text: string): number | null {
-  const m = text.match(/([+\-]?\d+(?:\.\d+)?)/);
-  if (!m) return null;
-  const v = parseFloat(m[1]);
-  if (Number.isNaN(v)) return null;
-  // 歩換算（±2以下）はセンチポーン相当に換算
-  if (Math.abs(v) <= 20 && !Number.isInteger(v)) return Math.round(v * 100);
-  if (Math.abs(v) <= 20 && String(m[1]).includes("."))
-    return Math.round(v * 100);
-  return Math.round(v);
-}
-
-function sideFromMoveNumber(moveNumber: number): "sente" | "gote" {
-  return moveNumber % 2 === 1 ? "sente" : "gote";
-}
-
-function formatMove(sideMark: "▲" | "△", body: string): string {
-  return `${sideMark}${body.replace(/^[▲△]/, "")}`;
-}
-
-function parseMoveLine(line: string): Omit<ParsedKifuMove, "evalAfter" | "candidate1Move" | "candidate1Eval"> | null {
-  const withMark = line.match(
-    /^(\d+)\s*[.．]?\s*([▲△])\s*(\S+?)(?:\([^)]*\))?/
-  );
-  if (withMark) {
-    const moveNumber = Number(withMark[1]);
-    const mark = withMark[2] as "▲" | "△";
-    return {
-      moveNumber,
-      side: mark === "▲" ? "sente" : "gote",
-      move: formatMove(mark, withMark[3]),
-    };
-  }
-
-  const kifStyle = line.match(/^(\d+)\s*[.．]?\s*(\S+?)(?:\([^)]*\))?/);
-  if (kifStyle) {
-    const moveNumber = Number(kifStyle[1]);
-    const body = kifStyle[2].replace(/^[▲△]/, "");
-    if (!body || /^候補/.test(body)) return null;
-    const side = sideFromMoveNumber(moveNumber);
-    const mark = side === "sente" ? "▲" : "△";
-    return {
-      moveNumber,
-      side,
-      move: formatMove(mark, body),
-    };
-  }
-
-  return null;
-}
-
-function parseInlineEval(line: string): number | null {
-  const afterMove = line.match(
-    /\)\s*([+\-]?\d+(?:\.\d+)?)\s*$/
-  );
-  if (afterMove) return parseEvalToken(afterMove[1]);
-
-  const trailing = line.match(/\s([+\-]?\d+(?:\.\d+)?)\s*$/);
-  if (trailing) return parseEvalToken(trailing[1]);
-
-  return null;
-}
-
-function parseCandidateLine(line: string): {
-  move: string;
-  eval: number | null;
-} | null {
-  const match = line.match(
-    /候補[１1]?\s*[:：]?\s*([▲△]?\S+?)(?:\([^)]*\))?\s*([+\-]?\d+(?:\.\d+)?)?/
-  );
-  if (!match) return null;
-
-  let move = match[1].trim();
-  if (!move) return null;
-  if (!/^[▲△]/.test(move)) {
-    move = `▲${move}`;
-  }
-
-  return {
-    move,
-    eval: match[2] ? parseEvalToken(match[2]) : null,
-  };
+function applyCandidate1(
+  current: ParsedKifuMove,
+  candidate: { move: string; eval: number | null }
+) {
+  if (current.candidate1Move != null) return;
+  current.candidate1Move = candidate.move;
+  current.candidate1Eval = candidate.eval;
 }
 
 /** 棋神棋譜から手数・評価・候補1を抽出 */
 export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
   const moves: ParsedKifuMove[] = [];
   let current: ParsedKifuMove | null = null;
-  const lines = kifuText.split("\n");
+  let inEngineBlock = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+  for (const rawLine of kifuText.split("\n")) {
+    const line = rawLine.trim();
     if (!line) continue;
 
-    const parsedMove = parseMoveLine(line);
-    if (parsedMove) {
+    const numbered = parseNumberedMoveLine(line);
+    if (numbered) {
       if (current) moves.push(current);
       current = {
-        ...parsedMove,
+        moveNumber: numbered.moveNumber,
+        side: numbered.side,
+        move: numbered.move,
         evalAfter: parseInlineEval(line),
         candidate1Move: null,
         candidate1Eval: null,
       };
-
-      if (current.evalAfter == null) {
-        const next = lines[i + 1]?.trim() ?? "";
-        if (/^[+\-]?\d+(?:\.\d+)?$/.test(next)) {
-          current.evalAfter = parseEvalToken(next);
-          i++;
-        }
-      }
+      inEngineBlock = false;
       continue;
     }
 
     if (!current) continue;
 
+    if (/^\*\*\s*Engine/i.test(line)) {
+      inEngineBlock = true;
+      continue;
+    }
+
+    if (inEngineBlock) {
+      const engineEval = parseEngineEvalLine(line);
+      if (engineEval != null && current.evalAfter == null) {
+        current.evalAfter = engineEval;
+        continue;
+      }
+
+      const candidate = parseCandidateLine(line);
+      if (candidate) {
+        applyCandidate1(current, candidate);
+        continue;
+      }
+
+      if (/読み筋/.test(line)) {
+        const body = line.replace(/^.*?読み筋\s*/, "");
+        const marked = extractMarkedMoves(body);
+        if (marked.length > 0 && current.candidate1Move == null) {
+          applyCandidate1(current, { move: marked[0], eval: null });
+        }
+        continue;
+      }
+
+      if (/^深さ|^ノード|^時間/.test(line)) continue;
+
+      if (/^\d+\s/.test(line)) inEngineBlock = false;
+      continue;
+    }
+
     const candidate = parseCandidateLine(line);
     if (candidate) {
-      current.candidate1Move = candidate.move;
-      current.candidate1Eval = candidate.eval;
+      applyCandidate1(current, candidate);
       continue;
     }
 
     if (current.evalAfter == null) {
-      const evalOnly = parseEvalToken(line);
-      if (evalOnly != null && /^[+\-]?\d/.test(line)) {
-        current.evalAfter = evalOnly;
+      if (/^[+\-]?\d+(?:\.\d+)?$/.test(line)) {
+        current.evalAfter = parseEvalToken(line);
+        continue;
+      }
+
+      const engineEval = parseEngineEvalLine(line);
+      if (engineEval != null) {
+        current.evalAfter = engineEval;
       }
     }
   }

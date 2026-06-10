@@ -1,4 +1,8 @@
 import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
+import {
+  extractMarkedMoves,
+  parseNumberedMoveLine,
+} from "@/app/lib/kifu-line-parse";
 
 export type KifuEngineFacts = {
   /** 手数 → 実戦の指し手 */
@@ -8,41 +12,6 @@ export type KifuEngineFacts = {
   /** 棋譜内に登場する全指し手（正規化済み） */
   allMovesNormalized: Set<string>;
 };
-
-const MOVE_TOKEN_RE = /([▲△][^▲△\s、。，]+(?:\([^)]*\))?)/g;
-
-/** テキストから符号付き指し手を抽出 */
-export function extractMarkedMoves(text: string): string[] {
-  const moves: string[] = [];
-  for (const m of text.matchAll(MOVE_TOKEN_RE)) {
-    const move = m[1].replace(/\([^)]*\)/g, "").trim();
-    if (move) moves.push(move);
-  }
-  return moves;
-}
-
-function parseMoveNumberLine(
-  line: string
-): { moveNumber: number; move: string } | null {
-  const withMark = line.match(
-    /^(\d+)\s*[.．]?\s*([▲△])\s*(\S+?)(?:\([^)]*\))?/
-  );
-  if (withMark) {
-    return {
-      moveNumber: Number(withMark[1]),
-      move: `${withMark[2]}${withMark[3].replace(/^[▲△]/, "")}`,
-    };
-  }
-
-  const kifStyle = line.match(/^(\d+)\s*[.．]?\s*(\S+?)(?:\([^)]*\))?/);
-  if (!kifStyle) return null;
-  const body = kifStyle[2].replace(/^[▲△]/, "");
-  if (!body || /^候補|^\*\*/.test(body)) return null;
-
-  const moveNumber = Number(kifStyle[1]);
-  const side = moveNumber % 2 === 1 ? "▲" : "△";
-  return { moveNumber, move: `${side}${body}` };
-}
 
 function addCandidate(
   map: Map<number, string[]>,
@@ -73,7 +42,7 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
     const line = rawLine.trim();
     if (!line) continue;
 
-    const numbered = parseMoveNumberLine(line);
+    const numbered = parseNumberedMoveLine(line);
     if (numbered) {
       currentMoveNumber = numbered.moveNumber;
       inEngineBlock = false;
