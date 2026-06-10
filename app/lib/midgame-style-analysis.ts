@@ -1,6 +1,5 @@
 import {
   isLikelyAttackMove,
-  isLikelyDefensiveMove,
   isUserMove,
   parseKifuWithEvals,
   toUserEval,
@@ -10,9 +9,12 @@ import { resolvePlayerSideForRecord } from "@/app/lib/player-side-resolve";
 import type { PlayerSide } from "@/app/lib/handicap";
 import type { GameRecordDetail } from "@/app/lib/types";
 
-const EVAL_GAP_UNNECESSARY_DEFENSE = 80;
-const FAVORABLE_THRESHOLD = 120;
-const INITIATIVE_DROP = 100;
+/** 候補1より評価が低い選択とみなす差（cp） */
+const EVAL_GAP_UNNECESSARY_DEFENSE = 50;
+/** 自分有利とみなす評価 */
+const FAVORABLE_THRESHOLD = 80;
+/** 1手での評価急落 */
+const INITIATIVE_DROP = 70;
 const ATTACK_SEQUENCE_MIN = 2;
 
 export type MidgameStyleRecordMetrics = {
@@ -80,7 +82,7 @@ export function analyzeMidgameStyleForRecord(
     if (
       endEval != null &&
       endEval >= FAVORABLE_THRESHOLD / 2 &&
-      endEval >= (streakStartEval ?? 0) - 30
+      endEval >= (streakStartEval ?? 0) - 40
     ) {
       forcedDefenseInferred++;
     }
@@ -91,7 +93,7 @@ export function analyzeMidgameStyleForRecord(
 
   for (let i = 0; i < moves.length; i++) {
     const m = moves[i];
-    if (!isUserMove(m.moveNumber, playerSide)) continue;
+    if (!isUserMove(m.side, playerSide)) continue;
     if (m.evalAfter == null) continue;
 
     analyzedUserMoves++;
@@ -104,8 +106,7 @@ export function analyzeMidgameStyleForRecord(
 
     if (
       candEval != null &&
-      candEval - evalAfter >= EVAL_GAP_UNNECESSARY_DEFENSE &&
-      (isLikelyDefensiveMove(m.move) || evalBefore == null || evalBefore >= 0)
+      candEval - evalAfter >= EVAL_GAP_UNNECESSARY_DEFENSE
     ) {
       unnecessaryDefense++;
     }

@@ -1,7 +1,10 @@
 import type { PlayerSide } from "@/app/lib/handicap";
 import {
   extractMarkedMoves,
+  isEngineCommentLine,
+  normalizeNumericText,
   parseCandidateLine,
+  parseEngineCommentLine,
   parseEngineEvalLine,
   parseEvalToken,
   parseInlineEval,
@@ -25,6 +28,19 @@ function applyCandidate1(
   if (current.candidate1Move != null) return;
   current.candidate1Move = candidate.move;
   current.candidate1Eval = candidate.eval;
+}
+
+function applyEngineComment(current: ParsedKifuMove, line: string) {
+  const engine = parseEngineCommentLine(line);
+  if (engine.evalAfter != null && current.evalAfter == null) {
+    current.evalAfter = engine.evalAfter;
+  }
+  if (engine.candidate1Move) {
+    applyCandidate1(current, {
+      move: engine.candidate1Move,
+      eval: engine.candidate1Eval,
+    });
+  }
 }
 
 /** 棋神棋譜から手数・評価・候補1を抽出 */
@@ -59,6 +75,14 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
       continue;
     }
 
+    if (isEngineCommentLine(line)) {
+      applyEngineComment(current, line);
+      if (/^[*＊]/.test(line) && /Engine|解析/.test(line)) {
+        inEngineBlock = true;
+      }
+      continue;
+    }
+
     if (inEngineBlock) {
       const engineEval = parseEngineEvalLine(line);
       if (engineEval != null && current.evalAfter == null) {
@@ -83,25 +107,16 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
 
       if (/^深さ|^ノード|^時間/.test(line)) continue;
 
-      if (/^\d+\s/.test(line)) inEngineBlock = false;
-      continue;
-    }
-
-    const candidate = parseCandidateLine(line);
-    if (candidate) {
-      applyCandidate1(current, candidate);
+      if (new RegExp(`^${"[\\d０-９]+"}\\s`).test(line)) {
+        inEngineBlock = false;
+      }
       continue;
     }
 
     if (current.evalAfter == null) {
-      if (/^[+\-]?\d+(?:\.\d+)?$/.test(line)) {
+      const normalized = normalizeNumericText(line);
+      if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
         current.evalAfter = parseEvalToken(line);
-        continue;
-      }
-
-      const engineEval = parseEngineEvalLine(line);
-      if (engineEval != null) {
-        current.evalAfter = engineEval;
       }
     }
   }
@@ -111,6 +126,14 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
 }
 
 export function isUserMove(
+  moveSide: "sente" | "gote",
+  playerSide: PlayerSide
+): boolean {
+  return moveSide === playerSide;
+}
+
+/** @deprecated 手数の奇偶で判定（▲△が信頼できる場合は isUserMove を使う） */
+export function isUserMoveByNumber(
   moveNumber: number,
   playerSide: PlayerSide
 ): boolean {

@@ -8,9 +8,20 @@ export type ParsedNumberedMove = {
 };
 
 const MOVE_TOKEN_RE = /([▲△][^▲△\s、。，]+(?:\([^)]*\))?)/g;
+const DIGIT = "[\\d０-９]+";
+
+export function normalizeNumericText(text: string): string {
+  return text
+    .replace(/[０-９]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0xff10 + 0x30)
+    )
+    .replace(/[＋]/g, "+")
+    .replace(/[－−―]/g, "-");
+}
 
 export function parseEvalToken(text: string): number | null {
-  const m = text.match(/([+\-]?\d+(?:\.\d+)?)/);
+  const normalized = normalizeNumericText(text);
+  const m = normalized.match(/([+\-]?\d+(?:\.\d+)?)/);
   if (!m) return null;
   const v = parseFloat(m[1]);
   if (Number.isNaN(v)) return null;
@@ -41,12 +52,14 @@ export function extractMarkedMoves(text: string): string[] {
 
 /** 手の行から指し手本体を抽出（7六歩など全体を取る） */
 export function parseNumberedMoveLine(line: string): ParsedNumberedMove | null {
-  const withMark = line.match(/^(\d+)\s*[.．]?\s*([▲△])\s*([^\s(]+)/);
+  const withMark = line.match(
+    new RegExp(`^(${DIGIT})\\s*[.．]?\\s*([▲△])\\s*([^\\s(]+)`)
+  );
   if (withMark) {
-    const moveNumber = Number(withMark[1]);
+    const moveNumber = Number(normalizeNumericText(withMark[1]));
     const mark = withMark[2] as "▲" | "△";
     const body = withMark[3].replace(/^[▲△]/, "");
-    if (!body || /^候補|^\*\*/.test(body)) return null;
+    if (!body || /^候補|^\*\*|^[*＊]/.test(body)) return null;
     return {
       moveNumber,
       side: mark === "▲" ? "sente" : "gote",
@@ -55,13 +68,15 @@ export function parseNumberedMoveLine(line: string): ParsedNumberedMove | null {
     };
   }
 
-  const kifStyle = line.match(/^(\d+)\s*[.．]?\s*([▲△]?)\s*([^\s(]+)/);
+  const kifStyle = line.match(
+    new RegExp(`^(${DIGIT})\\s*[.．]?\\s*([▲△]?)\\s*([^\\s(]+)`)
+  );
   if (!kifStyle) return null;
 
   const body = kifStyle[3].replace(/^[▲△]/, "");
-  if (!body || /^候補|^\*\*/.test(body)) return null;
+  if (!body || /^候補|^\*\*|^[*＊]/.test(body)) return null;
 
-  const moveNumber = Number(kifStyle[1]);
+  const moveNumber = Number(normalizeNumericText(kifStyle[1]));
   const explicitMark = kifStyle[2] as "▲" | "△" | "";
   const side = explicitMark
     ? explicitMark === "▲"
@@ -80,10 +95,11 @@ export function parseNumberedMoveLine(line: string): ParsedNumberedMove | null {
 
 /** 手の行末尾、または ) の直後にある評価値 */
 export function parseInlineEval(line: string): number | null {
-  const afterMove = line.match(/\)\s*([+\-]?\d+(?:\.\d+)?)\s*$/);
+  const normalized = normalizeNumericText(line);
+  const afterMove = normalized.match(/\)\s*([+\-]?\d+(?:\.\d+)?)\s*$/);
   if (afterMove) return parseEvalToken(afterMove[1]);
 
-  const trailing = line.match(/\s([+\-]?\d+(?:\.\d+)?)\s*$/);
+  const trailing = normalized.match(/\s([+\-]?\d+(?:\.\d+)?)\s*$/);
   if (trailing) return parseEvalToken(trailing[1]);
 
   return null;
@@ -91,10 +107,11 @@ export function parseInlineEval(line: string): number | null {
 
 /** Engine ブロック内の「評価値: +150」等 */
 export function parseEngineEvalLine(line: string): number | null {
-  if (!/^評価/.test(line)) return null;
-  const withColon = line.match(/[:：]\s*([+\-]?\d+(?:\.\d+)?)/);
+  const normalized = normalizeNumericText(line.trim());
+  if (!/^評価/.test(normalized)) return null;
+  const withColon = normalized.match(/[:：=]\s*([+\-]?\d+(?:\.\d+)?)/);
   if (withColon) return parseEvalToken(withColon[1]);
-  return parseEvalToken(line.replace(/^評価値?/, ""));
+  return parseEvalToken(normalized.replace(/^評価値?/, ""));
 }
 
 /** 候補1行から指し手と評価を抽出 */
@@ -106,15 +123,19 @@ export function parseCandidateLine(line: string): {
 
   const moves = extractMarkedMoves(line);
   if (moves.length > 0) {
-    const evalMatch = line.match(/([+\-]?\d+(?:\.\d+)?)\s*$/);
+    const normalized = normalizeNumericText(line);
+    const parenEval = normalized.match(/\(([+\-]?\d+(?:\.\d+)?)\)/);
+    const evalMatch =
+      parenEval ?? normalized.match(/([+\-]?\d+(?:\.\d+)?)\s*$/);
     return {
       move: moves[0],
       eval: evalMatch ? parseEvalToken(evalMatch[1]) : null,
     };
   }
 
-  const fallback = line.match(
-    /候補[１1]?\s*[:：]?\s*([▲△]?[^\s]+?)(?:\([^)]*\))?\s*([+\-]?\d+(?:\.\d+)?)?\s*$/
+  const normalized = normalizeNumericText(line);
+  const fallback = normalized.match(
+    /候補[１1]?\s*[:：=]?\s*([▲△]?[^\s]+?)(?:\([^)]*\))?\s*([+\-]?\d+(?:\.\d+)?)?\s*$/
   );
   if (!fallback) return null;
 
@@ -126,4 +147,69 @@ export function parseCandidateLine(line: string): {
     move,
     eval: fallback[2] ? parseEvalToken(fallback[2]) : null,
   };
+}
+
+export type ParsedEngineComment = {
+  evalAfter: number | null;
+  candidate1Move: string | null;
+  candidate1Eval: number | null;
+};
+
+/** 棋神/KIF の * Engine ... 評価値 ... 読み筋 ... 1行形式 */
+export function parseEngineCommentLine(line: string): ParsedEngineComment {
+  const trimmed = line.trim();
+  const normalized = normalizeNumericText(trimmed);
+  const empty = {
+    evalAfter: null,
+    candidate1Move: null,
+    candidate1Eval: null,
+  };
+  if (!trimmed) return empty;
+
+  // CSA: ** 30 -8384FU +2625FU
+  const csaStyle = normalized.match(/^\*\*\s*([+\-]?\d+(?:\.\d+)?)\b/);
+  if (csaStyle) {
+    const moves = extractMarkedMoves(trimmed);
+    return {
+      evalAfter: parseEvalToken(csaStyle[1]),
+      candidate1Move: moves[0] ?? null,
+      candidate1Eval: null,
+    };
+  }
+
+  let evalAfter: number | null = null;
+  const evalMatch = normalized.match(/評価値\s*[=:]?\s*([+\-]?\d+(?:\.\d+)?)/);
+  if (evalMatch) evalAfter = parseEvalToken(evalMatch[1]);
+
+  let candidate1Move: string | null = null;
+  let candidate1Eval: number | null = null;
+
+  const candidate = parseCandidateLine(trimmed);
+  if (candidate) {
+    candidate1Move = candidate.move;
+    candidate1Eval = candidate.eval;
+  }
+
+  const yomiMatch = trimmed.match(/読み筋\s*(.*)/);
+  if (yomiMatch) {
+    const moves = extractMarkedMoves(yomiMatch[1]);
+    if (moves.length > 0) {
+      candidate1Move = candidate1Move ?? moves[0];
+    }
+  }
+
+  return { evalAfter, candidate1Move, candidate1Eval };
+}
+
+export function isEngineCommentLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (/^\*\*\s*Engine/i.test(trimmed)) return true;
+  if (/^[*＊]/.test(trimmed)) {
+    return /Engine|解析|評価値|候補|読み筋|深さ|ノード/.test(trimmed);
+  }
+  if (/^評価/.test(trimmed)) return true;
+  if (/^候補[１1]/.test(trimmed)) return true;
+  if (/^深さ|^ノード|^時間/.test(trimmed)) return true;
+  return false;
 }
