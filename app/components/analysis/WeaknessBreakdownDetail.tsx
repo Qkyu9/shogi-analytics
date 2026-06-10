@@ -4,28 +4,37 @@ function MetricLine({
   label,
   count,
   rate,
+  hint,
   compact,
 }: {
   label: string;
   count: number;
   rate: number;
+  hint?: string;
   compact?: boolean;
 }) {
   return (
-    <div
-      className={`flex items-center justify-between gap-2 ${
-        compact ? "text-xs" : "text-sm"
-      }`}
-    >
-      <span className="text-[var(--color-text)]">{label}</span>
-      <span className="shrink-0 text-[var(--color-text-sub)]">
-        {count}回 ({rate}%)
-      </span>
+    <div className={`flex flex-col ${compact ? "gap-0.5" : "gap-1"}`}>
+      <div
+        className={`flex items-center justify-between gap-2 ${
+          compact ? "text-xs" : "text-sm"
+        }`}
+      >
+        <span className="font-semibold text-[var(--color-text)]">{label}</span>
+        <span className="shrink-0 text-[var(--color-text-sub)]">
+          {count}件 ({rate}%)
+        </span>
+      </div>
+      {hint && !compact && (
+        <p className="text-xs font-normal leading-relaxed text-[var(--color-text-sub)]">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
 
-/** 弱点タグ直下の棋譜分析内訳 */
+/** 弱点タグ直下の要所分析内訳 */
 export function WeaknessBreakdownDetail({
   breakdown,
   compact = false,
@@ -41,13 +50,14 @@ export function WeaknessBreakdownDetail({
     >
       {!compact && (
         <p className="text-xs leading-relaxed text-[var(--color-text-sub)]">
-          棋譜分析の内訳（{breakdown.gamesAnalyzed}局・自分の手
-          {breakdown.analyzedUserMoves}手）
+          要所分析の内訳（{breakdown.gamesAnalyzed}局・要所
+          {breakdown.turningPointCount}件）
         </p>
       )}
       {compact && (
         <p className="text-[10px] text-[var(--color-text-sub)]">
-          棋譜内訳（{breakdown.gamesAnalyzed}局）
+          要所内訳（{breakdown.gamesAnalyzed}局・{breakdown.turningPointCount}
+          件）
         </p>
       )}
       <ul className={`flex flex-col ${compact ? "gap-1.5" : "gap-2.5"}`}>
@@ -57,13 +67,9 @@ export function WeaknessBreakdownDetail({
               label={m.label}
               count={m.count}
               rate={m.rate}
+              hint={m.hint}
               compact={compact}
             />
-            {!compact && m.hint && (
-              <p className="mt-0.5 text-xs text-[var(--color-text-sub)]">
-                {m.hint}
-              </p>
-            )}
             {!compact && (
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface)]">
                 <div
@@ -75,19 +81,14 @@ export function WeaknessBreakdownDetail({
           </li>
         ))}
       </ul>
-      {!compact && breakdown.statusMessage && (
-        <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-          {breakdown.statusMessage}
-        </p>
-      )}
       {!compact && breakdown.skippedGames != null && breakdown.skippedGames > 0 && (
         <p className="text-[10px] text-[var(--color-text-sub)]">
-          ※ {breakdown.skippedGames}局は手番未記録などのため集計対象外
+          ※ {breakdown.skippedGames}局は棋神示唆の要所が未記録のため集計対象外
         </p>
       )}
       {!compact && (
         <p className="text-[10px] leading-relaxed text-[var(--color-text-sub)]">
-          ※ 棋譜に評価・候補手があり先手/後手が記録された対局が対象
+          ※ 割合の分母は要所の件数です
         </p>
       )}
     </div>
