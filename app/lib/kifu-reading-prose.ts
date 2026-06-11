@@ -1,22 +1,18 @@
-/** 読み筋・候補手を文章化（持ち駒の推測はしない。手番を明示する） */
+/** 候補手・読み筋からコンパクトな「狙い」文を生成 */
 
 const MOVE_TOKEN_RE = /[▲△][^▲△]*?(?=\s*[▲△]|$)/g;
 const DEST_RE = /^([０-９0-9]?[一二三四五六七八九]|[１-９1-9][一二三四五六七八九])/;
-
-function sideLabel(mark: "▲" | "△"): string {
-  return mark === "▲" ? "先手が" : "後手が";
-}
 
 function markOf(token: string): "▲" | "△" {
   return token.startsWith("△") ? "△" : "▲";
 }
 
-function normalizePieceLabel(body: string): string {
+function compactPiece(body: string): string {
   if (/と/.test(body)) return "と";
   if (/馬/.test(body) || /角成/.test(body)) return "馬";
   if (/竜|龍/.test(body) || /飛成/.test(body)) return "龍";
   if (/角/.test(body)) return "角";
-  if (/飛/.test(body)) return "飛車";
+  if (/飛/.test(body)) return "飛";
   if (/金/.test(body)) return "金";
   if (/銀/.test(body)) return "銀";
   if (/桂/.test(body)) return "桂";
@@ -31,7 +27,7 @@ function parseDestination(body: string): string | null {
   return m?.[1] ?? null;
 }
 
-/** 符号付き指し手を原文のまま抽出（(33) 等を保持） */
+/** 符号付き指し手を原文のまま抽出 */
 export function extractMoveTokens(text: string): string[] {
   const tokens: string[] = [];
   for (const m of text.matchAll(MOVE_TOKEN_RE)) {
@@ -41,153 +37,139 @@ export function extractMoveTokens(text: string): string[] {
   return tokens;
 }
 
-type MoveDescription = {
-  text: string;
-  dest: string | null;
-};
-
-/** 1手を手番付きで説明 */
-export function describeMoveWithSide(
+/** △５一角(33) → △５一角、△同 飛(81) + prev=８二 → △８二同飛 */
+export function compactMoveLabel(
   token: string,
   prevDest: string | null
-): MoveDescription {
+): { label: string; dest: string | null } {
   const mark = markOf(token);
-  const side = sideLabel(mark);
-  const body = token.replace(/^[▲△]/, "").trim();
+  const rawBody = token.replace(/^[▲△]/, "").trim();
 
-  if (/打/.test(body)) {
-    const dest = parseDestination(body.replace(/打.*/, "")) ?? "";
-    const piece = normalizePieceLabel(body);
-    const destPart = dest ? `${dest}に` : "";
-    return {
-      text: `${side}${destPart}${piece}を打つ（読み筋上）`,
-      dest: dest || null,
-    };
+  if (/打/.test(rawBody)) {
+    const dest = parseDestination(rawBody.replace(/打.*/, "")) ?? "";
+    const piece = compactPiece(rawBody);
+    return { label: `${mark}${dest}${piece}打`, dest: dest || null };
   }
 
-  const fromMatch = body.match(/^(.+?)\((\d+)\)$/);
-  if (fromMatch) {
-    const main = fromMatch[1].trim();
-    const from = fromMatch[2];
-    const piece = normalizePieceLabel(main);
+  const body = rawBody.replace(/\(\d+\)$/, "");
 
-    if (/^同/.test(main)) {
-      const ref = prevDest ? `${prevDest}のマスで` : "同じマスで";
-      return {
-        text: `${side}${from}の${piece}が${ref}取る`,
-        dest: prevDest,
-      };
-    }
-
-    const dest = parseDestination(main);
-    if (dest) {
-      return {
-        text: `${side}${from}マスの${piece}を${dest}へ`,
-        dest,
-      };
-    }
-    return { text: `${side}${from}の${piece}を動かす`, dest: null };
+  if (/^同/.test(body)) {
+    const piece = compactPiece(body.replace(/^同\s*/, ""));
+    const dest = prevDest ?? "";
+    return { label: `${mark}${dest}同${piece}`, dest: prevDest };
   }
 
   const dest = parseDestination(body);
-  const piece = normalizePieceLabel(body.replace(DEST_RE, ""));
+  const piece = compactPiece(body.replace(DEST_RE, ""));
   if (dest && piece) {
-    return { text: `${side}${piece}を${dest}へ`, dest };
+    return { label: `${mark}${dest}${piece}`, dest };
   }
 
-  return { text: `${side}${body}`, dest: null };
+  return { label: `${mark}${body}`, dest: null };
 }
 
-/** @deprecated 手番なし。describeMoveWithSide を使うこと */
-export function describeShogiMove(move: string): string {
-  return describeMoveWithSide(move, null).text.replace(/^(先手が|後手が)/, "");
+function normalizeTokenKey(token: string): string {
+  return token.replace(/\([^)]*\)/g, "").replace(/\s+/g, "");
 }
 
-/** 候補手1手を強調した要約 */
-export function summarizeCandidateMove(
+function resolveCandidateToken(
   candidateMove: string,
   readingLine: string
 ): string {
   const tokens = extractMoveTokens(readingLine);
-  const token =
-    tokens.find((t) => t.replace(/\([^)]*\)/g, "") === candidateMove.replace(/\([^)]*\)/g, "")) ??
-    tokens[0] ??
-    candidateMove;
+  const key = normalizeTokenKey(candidateMove);
+  const matched = tokens.find((t) => normalizeTokenKey(t) === key);
+  if (matched) return matched;
 
-  return describeMoveWithSide(token, null).text;
+  if (/^[▲△]/.test(candidateMove)) return candidateMove;
+  return candidateMove;
 }
 
-/** 読み筋の続き（2手目以降）を手番付きで要約 */
-export function summarizeReadingContinuation(
+/** 読み筋から展開の狙いを短く推定（多少の推測を許容） */
+export function inferStrategySuffix(
+  tokens: string[],
+  storedInsight?: string
+): string {
+  const ai = storedInsight?.trim() ?? "";
+  if (ai && !/手に入れ|持ち駒を制|持ち駒に/.test(ai)) {
+    const cleaned = ai
+      .replace(/\d+手目(?:では|、)?/g, "")
+      .replace(/本譜|実戦|選んだ|指した/g, "")
+      .replace(/^[、。\s]+|[、。\s]+$/g, "");
+
+    const afterBut = cleaned.match(
+      /(?:が|けど|が、)(.+?(?:展開|流れ|手筋|狙い|圧|攻|守).+?)(?:。|$)/
+    );
+    if (afterBut?.[1] && afterBut[1].length >= 4 && afterBut[1].length <= 48) {
+      return afterBut[1].replace(/。$/, "");
+    }
+
+    if (cleaned.length >= 6 && cleaned.length <= 48 && !/[▲△]/.test(cleaned)) {
+      return cleaned.replace(/。$/, "");
+    }
+  }
+
+  const joined = tokens.map((t) => t.replace(/^[▲△]/, "")).join("");
+  const first = tokens[0] ?? "";
+
+  if (/角|馬/.test(first)) {
+    if (/飛|竜|龍/.test(joined)) return "角と飛車の連携で攻めを続けられる";
+    if (/同/.test(joined)) return "角を活かして同マスでの取り合いに持ち込める";
+    return "角の働きを広げて相手に圧力をかけられる";
+  }
+  if (/飛|竜|龍/.test(first)) return "飛車を利かせた展開を作れる";
+  if (/金|銀/.test(first)) return "守りの駒を整えて形を保てる";
+  if (/玉|王/.test(first)) return "玉の安全を確保しやすい";
+  if (/歩/.test(first) && /打/.test(first)) return "歩の突き出しで攻めの隙を作れる";
+  return "形勢を維持しやすい進行";
+}
+
+/**
+ * 狙い文（コンパクト）
+ * 例: △５一角と指せば、以下▲８二馬、△８二同飛で角と飛車の連携で攻めを続けられる。
+ */
+export function buildCompactAim(
+  candidateMove: string,
   readingLine: string,
-  maxFollowMoves = 3
+  storedInsight?: string,
+  maxFollowMoves = 2
 ): string {
   const tokens = extractMoveTokens(readingLine);
-  if (tokens.length <= 1) return "";
+  const candToken = resolveCandidateToken(candidateMove, readingLine);
+  const candMark = /^[▲△]/.test(candToken)
+    ? candToken
+    : `${candidateMove.startsWith("△") ? "△" : "▲"}${candToken.replace(/^[▲△]/, "")}`;
 
-  const parts: string[] = [];
-  let prevDest: string | null = describeMoveWithSide(tokens[0], null).dest;
+  const { label: candLabel, dest: firstDest } = compactMoveLabel(candMark, null);
+
+  const followLabels: string[] = [];
+  let prevDest = firstDest;
 
   for (const token of tokens.slice(1, 1 + maxFollowMoves)) {
-    const desc = describeMoveWithSide(token, prevDest);
-    parts.push(desc.text);
-    if (desc.dest) prevDest = desc.dest;
+    const { label, dest } = compactMoveLabel(token, prevDest);
+    followLabels.push(label);
+    if (dest) prevDest = dest;
   }
 
-  return parts.join("、");
-}
+  const strategy = inferStrategySuffix(
+    tokens.length > 0 ? tokens : [candMark],
+    storedInsight
+  );
 
-/** 読み筋全体の要約（候補＋続き） */
-export function summarizeReadingAsProse(
-  readingLine: string,
-  candidateMove = "",
-  maxFollowMoves = 3
-): string {
-  const candidate = summarizeCandidateMove(candidateMove, readingLine);
-  const continuation = summarizeReadingContinuation(readingLine, maxFollowMoves);
-
-  if (continuation) {
-    return `${candidate}。その後の読み筋では${continuation}。`;
+  if (followLabels.length === 0) {
+    return `${candLabel}と指せば、${strategy}。`;
   }
-  return `${candidate}。`;
+
+  return `${candLabel}と指せば、以下${followLabels.join("、")}で${strategy}。`;
 }
 
-/** 保存済みAI文は読み筋がある場合は使わない（持ち駒創作などを防ぐ） */
-export function shouldDiscardStoredIntent(
-  aiText: string,
-  readingLine: string,
-  candidateMove: string
-): boolean {
-  if (!readingLine.trim() || !candidateMove.trim()) return false;
-  const ai = aiText.trim();
-  if (!ai) return false;
-  if (/手に入れ|獲得|取った|持ち駒|新たに/.test(ai)) return true;
-  return true;
-}
-
-/** @deprecated shouldDiscardStoredIntent を使用 */
-export function aiIntentContradictsKifu(
-  aiText: string,
-  candidateMove: string,
-  readingLine: string
-): boolean {
-  return shouldDiscardStoredIntent(aiText, readingLine, candidateMove);
-}
-
-/** 本譜・候補・読み筋から狙い文を機械生成 */
+/** @deprecated buildCompactAim を使用 */
 export function buildReadingBasedIntent(
-  moveNumber: number,
-  actualMove: string,
+  _moveNumber: number,
+  _actualMove: string,
   candidateMove: string,
-  readingLine: string
+  readingLine: string,
+  storedInsight?: string
 ): string {
-  const actual = describeMoveWithSide(actualMove, null).text;
-  const candidate = summarizeCandidateMove(candidateMove, readingLine);
-  const continuation = summarizeReadingContinuation(readingLine, 2);
-
-  if (continuation) {
-    return `${moveNumber}手目では${actual}と指したが、候補として${candidate}。その後の読み筋では${continuation}。`;
-  }
-
-  return `${moveNumber}手目では${actual}と指したが、候補として${candidate}。`;
+  return buildCompactAim(candidateMove, readingLine, storedInsight);
 }

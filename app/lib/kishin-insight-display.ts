@@ -5,10 +5,7 @@ import {
 } from "@/app/lib/kifu-candidate-resolver";
 import { parseKifuEngineFacts } from "@/app/lib/kifu-engine-facts";
 import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
-import {
-  buildReadingBasedIntent,
-  summarizeReadingAsProse,
-} from "@/app/lib/kifu-reading-prose";
+import { buildCompactAim } from "@/app/lib/kifu-reading-prose";
 import { parseKifuMoveIndex } from "@/app/lib/kifu-move-index";
 import type {
   KishinDisplayModel,
@@ -114,24 +111,12 @@ function extractLessonText(insight: KishinInsight): string {
 function buildIntentText(
   storedInsight: string,
   readingLine: string,
-  candidateMove: string,
-  actualMove: string,
-  moveNumber: number
+  candidateMove: string
 ): string {
-  const ai = storedInsight.trim();
-
   if (readingLine && candidateMove) {
-    return buildReadingBasedIntent(
-      moveNumber,
-      actualMove,
-      candidateMove,
-      readingLine
-    );
+    return buildCompactAim(candidateMove, readingLine, storedInsight);
   }
-
-  if (ai) return ai;
-
-  return "";
+  return storedInsight.trim();
 }
 
 function buildDisplayTurningPoint(
@@ -150,16 +135,7 @@ function buildDisplayTurningPoint(
     tp.topCandidate
   );
   const readingLine = resolveReadingForTurningPoint(tp.moveNumber, kifuText);
-  const readingSummary = readingLine
-    ? summarizeReadingAsProse(readingLine, candidateMove)
-    : "";
-  const intent = buildIntentText(
-    tp.insight,
-    readingLine,
-    candidateMove,
-    actualMove,
-    tp.moveNumber
-  );
+  const intent = buildIntentText(tp.insight, readingLine, candidateMove);
 
   return {
     moveNumber: tp.moveNumber,
@@ -167,7 +143,6 @@ function buildDisplayTurningPoint(
     candidateMove,
     evalChange: tp.evalChange.trim(),
     readingLine,
-    readingSummary,
     intent,
   };
 }

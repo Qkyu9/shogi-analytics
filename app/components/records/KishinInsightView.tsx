@@ -31,7 +31,6 @@ function TurningPointCard({
   candidateMove,
   evalChange,
   readingLine,
-  readingSummary,
   intent,
 }: {
   index: number;
@@ -40,7 +39,6 @@ function TurningPointCard({
   candidateMove: string;
   evalChange: string;
   readingLine: string;
-  readingSummary: string;
   intent: string;
 }) {
   return (
@@ -73,12 +71,16 @@ function TurningPointCard({
             <dd className="text-[var(--color-text-sub)]">{evalChange}</dd>
           </div>
         )}
-        {(readingSummary || readingLine) && (
+        {(intent || readingLine) && (
           <div className="mt-1 flex flex-col gap-1">
-            <dt className="font-medium text-[var(--color-text-sub)]">読み筋</dt>
-            {readingSummary && (
+            <dt className="font-medium text-[var(--color-text-sub)]">狙い</dt>
+            {intent ? (
               <dd className="leading-relaxed text-[var(--color-text)]">
-                {readingSummary}
+                {intent}
+              </dd>
+            ) : (
+              <dd className="text-[var(--color-text-sub)]">
+                （候補手の狙いは未生成です）
               </dd>
             )}
             {readingLine && (
@@ -91,22 +93,13 @@ function TurningPointCard({
                 </p>
               </CollapsibleSection>
             )}
-            <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 候補手と読み筋の符号から機械的に要約しています（▲＝先手、△＝後手）
-            </p>
+            {intent && (
+              <p className="text-xs text-[var(--color-text-sub)]">
+                ※ 候補手・読み筋の符号と展開から要約しています
+              </p>
+            )}
           </div>
         )}
-        <div className="mt-1 flex flex-col gap-1">
-          <dt className="font-medium text-[var(--color-text-sub)]">狙い</dt>
-          <dd className="leading-relaxed text-[var(--color-text)]">
-            {intent || "（候補手の狙いは未生成です）"}
-          </dd>
-          {intent && (
-            <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 候補手と読み筋から機械的に要約しています（持ち駒は推測しません）
-            </p>
-          )}
-        </div>
       </dl>
     </div>
   );
@@ -177,7 +170,6 @@ export function KishinInsightView({
                 candidateMove={tp.candidateMove}
                 evalChange={tp.evalChange}
                 readingLine={tp.readingLine}
-                readingSummary={tp.readingSummary}
                 intent={tp.intent}
               />
             ))}

@@ -30,12 +30,10 @@ export type KishinDisplayTurningPoint = {
   actualMove: string;
   candidateMove: string;
   evalChange: string;
-  /** LLMが推定した候補手の狙い（常時表示） */
+  /** 候補手の狙い（符号＋短い展開説明） */
   intent: string;
-  /** 棋譜に記載された読み筋（原文） */
+  /** 棋譜に記載された読み筋（原文・折りたたみ用） */
   readingLine: string;
-  /** 読み筋の文章要約（棋譜から機械生成） */
-  readingSummary: string;
 };
 
 /** UI表示用：棋神示唆のまとめ（第1段階） */
