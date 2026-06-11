@@ -41,7 +41,7 @@ export const CATEGORY_COVERS_TAGS: Record<BookCategory, string[]> = {
     "攻めの駒組み",
     "守りの手筋選択",
   ],
-  opening: ["序盤の手筋選択", "序盤の駒組み", "型の選択・準備不足"],
+  opening: ["序盤の駒組み", "型の選択・準備不足"],
   general: ["型の選択・準備不足", "想定外の手への対応不足"],
 };
 

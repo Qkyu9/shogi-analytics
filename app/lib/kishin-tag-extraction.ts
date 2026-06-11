@@ -1,5 +1,9 @@
 import type { GameRecordDetail, KishinInsight, TagStat } from "@/app/lib/types";
-import { MIDGAME_READ_TAG } from "@/app/lib/weakness-tags";
+import {
+  MIDGAME_READ_TAG,
+  normalizeWeaknessTag,
+  OPENING_FORMATION_TAG,
+} from "@/app/lib/weakness-tags";
 
 type TagRule = {
   tag: string;
@@ -39,8 +43,13 @@ const KISHIN_TAG_RULES: TagRule[] = [
   },
   {
     tag: "詰み逃し・逆転の見落とし",
-    patterns: [/詰み/, /Mate/, /逆転/, /投了/, /勝勢/],
+    patterns: [/詰み/, /詰め/, /Mate/, /逆転/, /投了/, /勝勢/],
     weight: 4,
+  },
+  {
+    tag: "入玉対策",
+    patterns: [/入玉/, /玉入/, /侵入/, /攻め込/],
+    weight: 3,
   },
   {
     tag: "寄せの読み漏れ",
@@ -53,8 +62,8 @@ const KISHIN_TAG_RULES: TagRule[] = [
     weight: 2,
   },
   {
-    tag: "序盤の手筋選択",
-    patterns: [/序盤/, /戦型/, /囲い/],
+    tag: OPENING_FORMATION_TAG,
+    patterns: [/序盤/, /戦型/, /囲い/, /駒組/],
     weight: 1,
   },
 ];
@@ -86,7 +95,12 @@ export function extractTagsFromKishinInsight(insight: KishinInsight): string[] {
     .sort((a, b) => b[1] - a[1])
     .map(([tag]) => tag);
 
-  if (ranked.length > 0) return ranked.slice(0, 3);
+  if (ranked.length > 0) {
+    return ranked
+      .slice(0, 3)
+      .map(normalizeWeaknessTag)
+      .filter(Boolean);
+  }
   return [];
 }
 
@@ -98,10 +112,12 @@ export function computeKishinTagStats(records: GameRecordDetail[]): TagStat[] {
     if (!record.kishinInsight) continue;
     const tags = extractTagsFromKishinInsight(record.kishinInsight);
     for (const tag of tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      const prev = latestByTag.get(tag);
+      const normalized = normalizeWeaknessTag(tag);
+      if (!normalized) continue;
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      const prev = latestByTag.get(normalized);
       if (!prev || new Date(record.playedAt) > new Date(prev.playedAt)) {
-        latestByTag.set(tag, { id: record.id, playedAt: record.playedAt });
+        latestByTag.set(normalized, { id: record.id, playedAt: record.playedAt });
       }
     }
   }
@@ -147,13 +163,14 @@ export function computeCombinedTagStats(
   const merged = new Map<string, TagStat>();
 
   for (const stat of [...kishinStats, ...verbalTagStats]) {
-    const prev = merged.get(stat.tag);
+    const normalizedTag = normalizeWeaknessTag(stat.tag);
+    const prev = merged.get(normalizedTag);
     if (!prev) {
-      merged.set(stat.tag, { ...stat });
+      merged.set(normalizedTag, { ...stat, tag: normalizedTag });
       continue;
     }
-    merged.set(stat.tag, {
-      tag: stat.tag,
+    merged.set(normalizedTag, {
+      tag: normalizedTag,
       count: prev.count + stat.count,
       percentage: 0,
       latestRecordId: stat.latestRecordId ?? prev.latestRecordId,
