@@ -56,37 +56,28 @@ export function resolveCandidateForTurningPoint(
   const facts = parseKifuEngineFacts(kifuText);
   const actual = actualMove.trim();
 
-  const lookupOrder =
-    moveNumber > 1
-      ? [moveNumber - 1, moveNumber, moveNumber + 1]
-      : [moveNumber, moveNumber + 1];
+  const fromFacts = pickCandidateFromList(
+    facts.candidatesByNumber.get(moveNumber) ?? [],
+    actual,
+    true
+  );
+  if (fromFacts) return fromFacts;
 
-  for (const n of lookupOrder) {
-    if (n < 1) continue;
-
-    const fromFacts = pickCandidateFromList(
-      facts.candidatesByNumber.get(n) ?? [],
-      actual,
-      true
-    );
-    if (fromFacts) return fromFacts;
-
-    const fromParsed = pickCandidateFromList(
-      candidatesFromParsed(kifuText, n),
-      actual,
-      true
-    );
-    if (fromParsed) return fromParsed;
-
-    const reading = facts.readingLineByNumber.get(n);
-    if (reading) {
-      for (const m of extractMarkedMoves(reading)) {
-        if (normalizeMoveToken(m) === normalizeMoveToken(actual)) continue;
-        if (actual && !isSameSide(m, actual)) continue;
-        return m;
-      }
+  const reading = facts.readingLineByNumber.get(moveNumber);
+  if (reading) {
+    for (const m of extractMarkedMoves(reading)) {
+      if (normalizeMoveToken(m) === normalizeMoveToken(actual)) continue;
+      if (actual && !isSameSide(m, actual)) continue;
+      return m;
     }
   }
+
+  const fromParsed = pickCandidateFromList(
+    candidatesFromParsed(kifuText, moveNumber),
+    actual,
+    true
+  );
+  if (fromParsed) return fromParsed;
 
   const fb = fallback?.trim() ?? "";
   if (fb && normalizeMoveToken(fb) !== normalizeMoveToken(actual)) return fb;
@@ -100,17 +91,7 @@ export function resolveReadingForTurningPoint(
   kifuText: string
 ): string {
   const facts = parseKifuEngineFacts(kifuText);
-  const order =
-    moveNumber > 1
-      ? [moveNumber - 1, moveNumber, moveNumber + 1]
-      : [moveNumber, moveNumber + 1];
-
-  for (const n of order) {
-    if (n < 1) continue;
-    const reading = facts.readingLineByNumber.get(n)?.trim();
-    if (reading) return reading;
-  }
-  return "";
+  return facts.readingLineByNumber.get(moveNumber)?.trim() ?? "";
 }
 
 export function resolveActualMoveForTurningPoint(

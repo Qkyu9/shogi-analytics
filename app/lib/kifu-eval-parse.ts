@@ -1,10 +1,11 @@
 import type { PlayerSide } from "@/app/lib/handicap";
 import {
-  extractMarkedMoves,
-  isEngineCommentLine,
+  absorbEngineLine,
+  createPendingMoveAnalysis,
+  pickCandidateForSide,
+} from "@/app/lib/kifu-pending-analysis";
+import {
   normalizeNumericText,
-  parseCandidateLine,
-  parseEngineCommentLine,
   parseEngineEvalLine,
   parseEvalToken,
   parseInlineEval,
@@ -21,33 +22,11 @@ export type ParsedKifuMove = {
   candidate1Eval: number | null;
 };
 
-function applyCandidate1(
-  current: ParsedKifuMove,
-  candidate: { move: string; eval: number | null }
-) {
-  if (current.candidate1Move != null) return;
-  current.candidate1Move = candidate.move;
-  current.candidate1Eval = candidate.eval;
-}
-
-function applyEngineComment(current: ParsedKifuMove, line: string) {
-  const engine = parseEngineCommentLine(line);
-  if (engine.evalAfter != null && current.evalAfter == null) {
-    current.evalAfter = engine.evalAfter;
-  }
-  if (engine.candidate1Move) {
-    applyCandidate1(current, {
-      move: engine.candidate1Move,
-      eval: engine.candidate1Eval,
-    });
-  }
-}
-
-/** 棋神棋譜から手数・評価・候補1を抽出 */
+/** 棋神 hisui 形式を含む棋譜から手数・評価・候補1を抽出 */
 export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
   const moves: ParsedKifuMove[] = [];
-  let current: ParsedKifuMove | null = null;
-  let inEngineBlock = false;
+  let pending = createPendingMoveAnalysis();
+  let lastEval: number | null = null;
 
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
@@ -55,78 +34,38 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
-      if (current) moves.push(current);
-      current = {
+      const candidateMove = pickCandidateForSide(
+        pending,
+        numbered.side,
+        numbered.move
+      );
+
+      moves.push({
         moveNumber: numbered.moveNumber,
         side: numbered.side,
         move: numbered.move,
         evalAfter: parseInlineEval(line),
-        candidate1Move: null,
-        candidate1Eval: null,
-      };
-      inEngineBlock = false;
+        candidate1Move: candidateMove || null,
+        candidate1Eval: candidateMove ? lastEval : null,
+      });
+
+      pending = createPendingMoveAnalysis();
+      lastEval = null;
       continue;
     }
 
-    if (!current) continue;
-
-    if (/^\*\*\s*Engine/i.test(line)) {
-      inEngineBlock = true;
+    if (absorbEngineLine(pending, line)) {
+      const evalVal = parseEngineEvalLine(line);
+      if (evalVal != null) lastEval = evalVal;
       continue;
     }
 
-    if (/^#/.test(line) && isEngineCommentLine(line)) {
-      applyEngineComment(current, line);
-      continue;
-    }
-
-    if (isEngineCommentLine(line)) {
-      applyEngineComment(current, line);
-      if (/^[*＊]/.test(line) && /Engine|解析/.test(line)) {
-        inEngineBlock = true;
-      }
-      continue;
-    }
-
-    if (inEngineBlock) {
-      const engineEval = parseEngineEvalLine(line);
-      if (engineEval != null && current.evalAfter == null) {
-        current.evalAfter = engineEval;
-        continue;
-      }
-
-      const candidate = parseCandidateLine(line);
-      if (candidate) {
-        applyCandidate1(current, candidate);
-        continue;
-      }
-
-      if (/読み筋/.test(line)) {
-        const body = line.replace(/^.*?読み筋\s*/, "");
-        const marked = extractMarkedMoves(body);
-        if (marked.length > 0 && current.candidate1Move == null) {
-          applyCandidate1(current, { move: marked[0], eval: null });
-        }
-        continue;
-      }
-
-      if (/^深さ|^ノード|^時間/.test(line)) continue;
-
-      if (new RegExp(`^${"[\\d０-９]+"}\\s`).test(line)) {
-        inEngineBlock = false;
-      }
-      continue;
-    }
-
-    if (current.evalAfter == null) {
-      const normalized = normalizeNumericText(line);
-      if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
-        current.evalAfter = parseEvalToken(line);
-      }
+    const normalized = normalizeNumericText(line);
+    if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
+      lastEval = parseEvalToken(line);
     }
   }
 
-  if (current) moves.push(current);
   return moves;
 }
 

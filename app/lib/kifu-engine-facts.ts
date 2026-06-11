@@ -1,8 +1,11 @@
 import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
-import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
+import {
+  absorbEngineLine,
+  applyPendingToMaps,
+  createPendingMoveAnalysis,
+} from "@/app/lib/kifu-pending-analysis";
 import {
   extractMarkedMoves,
-  parseEngineCommentLine,
   parseNumberedMoveLine,
 } from "@/app/lib/kifu-line-parse";
 
@@ -33,15 +36,17 @@ function registerMove(set: Set<string>, move: string) {
   set.add(normalizeMoveToken(move));
 }
 
-/** 棋譜から実戦手・局面ごとのエンジン候補手を抽出 */
+/**
+ * 棋譜から実戦手・局面ごとのエンジン候補手を抽出。
+ * 棋神 hisui 形式: 候補N → 評価値 → 読み筋 → N手 指し手
+ */
 export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
   const moveByNumber = new Map<number, string>();
   const candidatesByNumber = new Map<number, string[]>();
   const readingLineByNumber = new Map<number, string>();
   const allMovesNormalized = new Set<string>();
 
-  let currentMoveNumber: number | null = null;
-  let inEngineBlock = false;
+  let pending = createPendingMoveAnalysis();
 
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
@@ -49,8 +54,16 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
-      currentMoveNumber = numbered.moveNumber;
-      inEngineBlock = false;
+      applyPendingToMaps(
+        numbered.moveNumber,
+        numbered.side,
+        numbered.move,
+        pending,
+        (n, m) => addCandidate(candidatesByNumber, n, m),
+        (n, r) => readingLineByNumber.set(n, r)
+      );
+      pending = createPendingMoveAnalysis();
+
       moveByNumber.set(numbered.moveNumber, numbered.move);
       registerMove(allMovesNormalized, numbered.move);
       for (const m of extractMarkedMoves(line)) {
@@ -59,73 +72,10 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
       continue;
     }
 
-    if (/^\*\*\s*Engine/i.test(line)) {
-      inEngineBlock = true;
-      continue;
-    }
-
-    if (inEngineBlock && currentMoveNumber != null) {
-      if (/^候補(?:手)?[１12]?/.test(line)) {
-        for (const m of extractMarkedMoves(line)) {
-          addCandidate(candidatesByNumber, currentMoveNumber, m);
-          registerMove(allMovesNormalized, m);
-        }
-        continue;
-      }
-
-      if (/読み筋/.test(line)) {
-        const body = line.replace(/^.*?読み筋\s*[：:]?\s*/, "").trim();
-        if (body) {
-          readingLineByNumber.set(currentMoveNumber, body);
-        }
-        for (const m of extractMarkedMoves(body || line)) {
-          addCandidate(candidatesByNumber, currentMoveNumber, m);
-          registerMove(allMovesNormalized, m);
-        }
-        continue;
-      }
-
-      if (/^評価値|^深さ|^ノード|^時間/.test(line)) continue;
-
-      if (/^\d+\s/.test(line)) {
-        inEngineBlock = false;
-      }
-    }
+    if (absorbEngineLine(pending, line)) continue;
 
     for (const m of extractMarkedMoves(line)) {
       registerMove(allMovesNormalized, m);
-    }
-
-    if (currentMoveNumber != null && /^候補(?:手)?/.test(line)) {
-      for (const m of extractMarkedMoves(line)) {
-        addCandidate(candidatesByNumber, currentMoveNumber, m);
-        registerMove(allMovesNormalized, m);
-      }
-      continue;
-    }
-
-    if (currentMoveNumber != null && /読み筋/.test(line)) {
-      const body = line.replace(/^.*?読み筋\s*[：:]?\s*/, "").trim();
-      if (body) readingLineByNumber.set(currentMoveNumber, body);
-    } else if (currentMoveNumber != null && /^[*＊#]/.test(line)) {
-      const engine = parseEngineCommentLine(line);
-      if (engine.candidate1Move) {
-        addCandidate(
-          candidatesByNumber,
-          currentMoveNumber,
-          engine.candidate1Move
-        );
-      }
-    }
-  }
-
-  for (const parsed of parseKifuWithEvals(kifuText)) {
-    if (!moveByNumber.has(parsed.moveNumber)) {
-      moveByNumber.set(parsed.moveNumber, parsed.move);
-    }
-    registerMove(allMovesNormalized, parsed.move);
-    if (parsed.candidate1Move) {
-      addCandidate(candidatesByNumber, parsed.moveNumber, parsed.candidate1Move);
     }
   }
 

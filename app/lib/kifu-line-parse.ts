@@ -119,7 +119,7 @@ export function parseCandidateLine(line: string): {
   move: string;
   eval: number | null;
 } | null {
-  if (!/^候補(?:手)?[１1一二]?/.test(line)) return null;
+  if (!/^候補(?:手)?[0-9０-９]/.test(line)) return null;
 
   const moves = extractMarkedMoves(line);
   if (moves.length > 0) {
@@ -209,7 +209,7 @@ export function isEngineCommentLine(line: string): boolean {
     return /Engine|解析|評価値|候補|読み筋|深さ|ノード/.test(trimmed);
   }
   if (/^評価/.test(trimmed)) return true;
-  if (/^候補(?:手)?[１1]/.test(trimmed)) return true;
+  if (/^候補(?:手)?[0-9０-９]/.test(trimmed)) return true;
   if (/^深さ|^ノード|^時間/.test(trimmed)) return true;
   if (/^#/.test(trimmed) && /評価|候補|読み筋/.test(trimmed)) return true;
   return false;
