@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { CollapsibleSection } from "@/app/components/ui/CollapsibleSection";
 import { buildKishinDisplay } from "@/app/lib/kishin-insight-display";
-import type { KishinInsight } from "@/app/lib/types";
+import type { KishinDisplayModel, KishinInsight } from "@/app/lib/types";
 
 function InsightBlock({
   title,
@@ -101,11 +101,13 @@ function TurningPointCard({
 export function KishinInsightView({
   kifuText,
   insight,
+  kishinDisplay,
   loading = false,
   loadError = false,
 }: {
   kifuText?: string;
   insight?: KishinInsight;
+  kishinDisplay?: KishinDisplayModel;
   loading?: boolean;
   loadError?: boolean;
 }) {
@@ -137,7 +139,8 @@ export function KishinInsightView({
     );
   }
 
-  const display = buildKishinDisplay(insight, trimmedKifu);
+  const display =
+    kishinDisplay ?? buildKishinDisplay(insight, trimmedKifu);
 
   return (
     <div className="flex flex-col gap-5">

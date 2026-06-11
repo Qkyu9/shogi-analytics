@@ -52,6 +52,28 @@ export function extractMarkedMoves(text: string): string[] {
 
 /** 手の行から指し手本体を抽出（7六歩など全体を取る） */
 export function parseNumberedMoveLine(line: string): ParsedNumberedMove | null {
+  const withTeMark = line.match(
+    new RegExp(`^(${DIGIT})\\s*手\\s*[.．]?\\s*([▲△]?)\\s*([^\\s(]+)`)
+  );
+  if (withTeMark) {
+    const moveNumber = Number(normalizeNumericText(withTeMark[1]));
+    const explicitMark = withTeMark[2] as "▲" | "△" | "";
+    const body = withTeMark[3].replace(/^[▲△]/, "");
+    if (!body || /^候補|^\*\*|^[*＊]/.test(body)) return null;
+    const side = explicitMark
+      ? explicitMark === "▲"
+        ? "sente"
+        : "gote"
+      : sideFromMoveNumber(moveNumber);
+    const mark: "▲" | "△" = side === "sente" ? "▲" : "△";
+    return {
+      moveNumber,
+      side,
+      mark,
+      move: formatMove(mark, body),
+    };
+  }
+
   const withMark = line.match(
     new RegExp(`^(${DIGIT})\\s*[.．]?\\s*([▲△])\\s*([^\\s(]+)`)
   );
@@ -69,7 +91,7 @@ export function parseNumberedMoveLine(line: string): ParsedNumberedMove | null {
   }
 
   const kifStyle = line.match(
-    new RegExp(`^(${DIGIT})\\s*[.．]?\\s*([▲△]?)\\s*([^\\s(]+)`)
+    new RegExp(`^(${DIGIT})(?!手)\\s*[.．]?\\s*([▲△]?)\\s*([^\\s(]+)`)
   );
   if (!kifStyle) return null;
 

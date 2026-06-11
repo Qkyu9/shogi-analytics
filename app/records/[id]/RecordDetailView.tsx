@@ -213,6 +213,7 @@ export function RecordDetailView({ id }: { id: string }) {
             <KishinInsightView
               kifuText={record.kifuText}
               insight={record.kishinInsight}
+              kishinDisplay={record.kishinDisplay}
               loading={kishinLoading}
               loadError={kishinBackfillError}
             />

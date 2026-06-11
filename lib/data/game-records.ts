@@ -18,6 +18,7 @@ import {
 } from "@/app/lib/record-input-flags";
 import { migrateTagsToCurrentLabels } from "@/app/lib/weakness-tags";
 import { enrichKishinInsight } from "@/app/lib/kishin-insight-postprocess";
+import { buildKishinDisplay } from "@/app/lib/kishin-insight-display";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 function venueLabel(type: VenueType): string {
@@ -84,6 +85,12 @@ function toDetail(row: DbRecord): GameRecordDetail {
     row.player_side
   );
 
+  const kifuText = row.kifu_text ?? undefined;
+  const kishinInsight =
+    row.kishin_insight && kifuText?.trim()
+      ? enrichKishinInsight(row.kishin_insight, kifuText)
+      : row.kishin_insight ?? undefined;
+
   return {
     id: row.id,
     playedAt: row.played_at,
@@ -98,14 +105,15 @@ function toDetail(row: DbRecord): GameRecordDetail {
     tags: migrateTagsToCurrentLabels(row.tags ?? []),
     positionCount: positions.length,
     hasVoiceInput: hasVoiceInputData(row.source_input_text, positions),
-    hasKifuData: hasKifuInputData(row.kifu_text, row.kishin_insight),
+    hasKifuData: hasKifuInputData(kifuText, row.kishin_insight),
     insightTags: [],
     positions,
-    kifuText: row.kifu_text ?? undefined,
-    kishinInsight:
-      row.kishin_insight && row.kifu_text?.trim()
-        ? enrichKishinInsight(row.kishin_insight, row.kifu_text)
-        : row.kishin_insight ?? undefined,
+    kifuText,
+    kishinInsight,
+    kishinDisplay:
+      kishinInsight && kifuText?.trim()
+        ? buildKishinDisplay(kishinInsight, kifuText)
+        : undefined,
     sourceInputText: row.source_input_text ?? undefined,
   };
 }

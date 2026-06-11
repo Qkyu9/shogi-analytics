@@ -1,8 +1,10 @@
 import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
 import {
-  absorbEngineLine,
   applyPendingToMaps,
-  createPendingMoveAnalysis,
+  createPreMoveAnalysisState,
+  hasPendingContent,
+  processPreMoveLine,
+  resetPreMoveState,
 } from "@/app/lib/kifu-pending-analysis";
 import {
   extractMarkedMoves,
@@ -10,13 +12,9 @@ import {
 } from "@/app/lib/kifu-line-parse";
 
 export type KifuEngineFacts = {
-  /** 手数 → 実戦の指し手 */
   moveByNumber: Map<number, string>;
-  /** 手数 → その局面のエンジン候補手（候補1・読み筋から） */
   candidatesByNumber: Map<number, string[]>;
-  /** 手数 → 読み筋テキスト（候補手の狙い推定用） */
   readingLineByNumber: Map<number, string>;
-  /** 棋譜内に登場する全指し手（正規化済み） */
   allMovesNormalized: Set<string>;
 };
 
@@ -36,17 +34,14 @@ function registerMove(set: Set<string>, move: string) {
   set.add(normalizeMoveToken(move));
 }
 
-/**
- * 棋譜から実戦手・局面ごとのエンジン候補手を抽出。
- * 棋神 hisui 形式: 候補N → 評価値 → 読み筋 → N手 指し手
- */
+/** 棋譜から実戦手・局面ごとのエンジン候補手を抽出 */
 export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
   const moveByNumber = new Map<number, string>();
   const candidatesByNumber = new Map<number, string[]>();
   const readingLineByNumber = new Map<number, string>();
   const allMovesNormalized = new Set<string>();
 
-  let pending = createPendingMoveAnalysis();
+  let preMove = createPreMoveAnalysisState();
 
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
@@ -54,15 +49,17 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
-      applyPendingToMaps(
-        numbered.moveNumber,
-        numbered.side,
-        numbered.move,
-        pending,
-        (n, m) => addCandidate(candidatesByNumber, n, m),
-        (n, r) => readingLineByNumber.set(n, r)
-      );
-      pending = createPendingMoveAnalysis();
+      if (preMove.active || hasPendingContent(preMove.pending)) {
+        applyPendingToMaps(
+          numbered.moveNumber,
+          numbered.side,
+          numbered.move,
+          preMove.pending,
+          (n, m) => addCandidate(candidatesByNumber, n, m),
+          (n, r) => readingLineByNumber.set(n, r)
+        );
+      }
+      preMove = resetPreMoveState();
 
       moveByNumber.set(numbered.moveNumber, numbered.move);
       registerMove(allMovesNormalized, numbered.move);
@@ -72,8 +69,7 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
       continue;
     }
 
-    if (absorbEngineLine(pending, line)) continue;
-
+    processPreMoveLine(preMove, line);
     for (const m of extractMarkedMoves(line)) {
       registerMove(allMovesNormalized, m);
     }

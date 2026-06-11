@@ -100,6 +100,8 @@ export type GameRecordDetail = GameRecordSummary & {
   positions: (GamePosition & { sortOrder: number })[];
   kifuText?: string;
   kishinInsight?: KishinInsight;
+  /** サーバー側で棋譜から組み立てた表示用データ */
+  kishinDisplay?: KishinDisplayModel;
   sourceInputText?: string;
 };
 

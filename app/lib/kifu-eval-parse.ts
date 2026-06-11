@@ -1,8 +1,10 @@
 import type { PlayerSide } from "@/app/lib/handicap";
 import {
-  absorbEngineLine,
-  createPendingMoveAnalysis,
+  createPreMoveAnalysisState,
+  hasPendingContent,
   pickCandidateForSide,
+  processPreMoveLine,
+  resetPreMoveState,
 } from "@/app/lib/kifu-pending-analysis";
 import {
   normalizeNumericText,
@@ -16,7 +18,6 @@ export type ParsedKifuMove = {
   moveNumber: number;
   side: "sente" | "gote";
   move: string;
-  /** エンジン評価（先手有利がプラス） */
   evalAfter: number | null;
   candidate1Move: string | null;
   candidate1Eval: number | null;
@@ -25,7 +26,7 @@ export type ParsedKifuMove = {
 /** 棋神 hisui 形式を含む棋譜から手数・評価・候補1を抽出 */
 export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
   const moves: ParsedKifuMove[] = [];
-  let pending = createPendingMoveAnalysis();
+  let preMove = createPreMoveAnalysisState();
   let lastEval: number | null = null;
 
   for (const rawLine of kifuText.split("\n")) {
@@ -34,11 +35,14 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
-      const candidateMove = pickCandidateForSide(
-        pending,
-        numbered.side,
-        numbered.move
-      );
+      const candidateMove =
+        preMove.active || hasPendingContent(preMove.pending)
+          ? pickCandidateForSide(
+              preMove.pending,
+              numbered.side,
+              numbered.move
+            )
+          : "";
 
       moves.push({
         moveNumber: numbered.moveNumber,
@@ -49,16 +53,14 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
         candidate1Eval: candidateMove ? lastEval : null,
       });
 
-      pending = createPendingMoveAnalysis();
+      preMove = resetPreMoveState();
       lastEval = null;
       continue;
     }
 
-    if (absorbEngineLine(pending, line)) {
-      const evalVal = parseEngineEvalLine(line);
-      if (evalVal != null) lastEval = evalVal;
-      continue;
-    }
+    processPreMoveLine(preMove, line);
+    const evalVal = parseEngineEvalLine(line);
+    if (evalVal != null) lastEval = evalVal;
 
     const normalized = normalizeNumericText(line);
     if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
@@ -76,7 +78,6 @@ export function isUserMove(
   return moveSide === playerSide;
 }
 
-/** @deprecated 手数の奇偶で判定（▲△が信頼できる場合は isUserMove を使う） */
 export function isUserMoveByNumber(
   moveNumber: number,
   playerSide: PlayerSide
@@ -89,7 +90,6 @@ export function toUserEval(rawEval: number, playerSide: PlayerSide): number {
   return playerSide === "sente" ? rawEval : -rawEval;
 }
 
-/** 攻め寄りの手か（受け強要率の推測用・簡易） */
 export function isLikelyAttackMove(move: string): boolean {
   const body = move.replace(/^[▲△]/, "");
   if (/打/.test(body)) return true;

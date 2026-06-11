@@ -1,7 +1,7 @@
 import {
   extractMarkedMoves,
   parseEngineCommentLine,
-  parseEngineEvalLine,
+  normalizeNumericText,
 } from "@/app/lib/kifu-line-parse";
 
 /** 次の手数行の直前に現れるエンジン解析（棋神 hisui 形式） */
@@ -10,8 +10,24 @@ export type PendingMoveAnalysis = {
   readingLine: string;
 };
 
+export type PreMoveAnalysisState = {
+  pending: PendingMoveAnalysis;
+  /** 手数行の直前でエンジン解析ブロックを処理中 */
+  active: boolean;
+  /** 「読み筋」見出しの直後（続き行を取り込む） */
+  afterReadingHeader: boolean;
+};
+
 export function createPendingMoveAnalysis(): PendingMoveAnalysis {
   return { candidates: [], readingLine: "" };
+}
+
+export function createPreMoveAnalysisState(): PreMoveAnalysisState {
+  return {
+    pending: createPendingMoveAnalysis(),
+    active: false,
+    afterReadingHeader: false,
+  };
 }
 
 export function isEngineHeaderLine(line: string): boolean {
@@ -37,46 +53,112 @@ function pushCandidate(pending: PendingMoveAnalysis, move: string) {
   pending.candidates.push(move);
 }
 
-/** 手数行の前に現れるエンジン行を pending に蓄積する */
+function appendReadingChunk(pending: PendingMoveAnalysis, chunk: string) {
+  const trimmed = chunk.trim();
+  if (!trimmed) return;
+  pending.readingLine = pending.readingLine
+    ? `${pending.readingLine} ${trimmed}`
+    : trimmed;
+  for (const m of extractMarkedMoves(trimmed)) {
+    pushCandidate(pending, m);
+  }
+}
+
+function isIgnorableEngineMetaLine(line: string): boolean {
+  return /^深さ|^ノード|^時間|^NPS|^Hash|^TB|^seldepth|^multipv/i.test(
+    line
+  );
+}
+
+/**
+ * 手数行の前に現れる行を解析状態に取り込む。
+ * hisui 形式: 候補N → 評価値 → 読み筋 → （続き行）→ N手 指し手
+ */
+export function processPreMoveLine(
+  state: PreMoveAnalysisState,
+  line: string
+): void {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+
+  if (isEngineHeaderLine(trimmed)) {
+    state.active = true;
+    state.afterReadingHeader = false;
+    return;
+  }
+
+  if (isCandidateHeaderLine(trimmed)) {
+    state.active = true;
+    state.afterReadingHeader = false;
+    const engine = parseEngineCommentLine(trimmed);
+    if (engine.candidate1Move) pushCandidate(state.pending, engine.candidate1Move);
+    return;
+  }
+
+  if (isEvalHeaderLine(trimmed)) {
+    state.active = true;
+    return;
+  }
+
+  if (isIgnorableEngineMetaLine(trimmed)) {
+    state.active = true;
+    return;
+  }
+
+  if (/読み筋/.test(trimmed)) {
+    state.active = true;
+    state.afterReadingHeader = true;
+    appendReadingChunk(state.pending, extractReadingBody(trimmed));
+    return;
+  }
+
+  if (state.active) {
+    const moves = extractMarkedMoves(trimmed);
+    if (moves.length > 0) {
+      appendReadingChunk(state.pending, trimmed);
+      state.afterReadingHeader = false;
+      return;
+    }
+
+    if (state.afterReadingHeader) {
+      appendReadingChunk(state.pending, trimmed);
+      return;
+    }
+
+    if (/^[*＊#]/.test(trimmed)) {
+      const engine = parseEngineCommentLine(trimmed);
+      if (engine.candidate1Move) {
+        pushCandidate(state.pending, engine.candidate1Move);
+      }
+      return;
+    }
+
+    const normalized = normalizeNumericText(trimmed);
+    if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
+      return;
+    }
+  }
+}
+
+/** @deprecated absorbEngineLine の後方互換 */
 export function absorbEngineLine(
   pending: PendingMoveAnalysis,
   line: string
 ): boolean {
-  const trimmed = line.trim();
-  if (!trimmed) return false;
-
-  if (isEngineHeaderLine(trimmed)) return true;
-  if (isCandidateHeaderLine(trimmed)) return true;
-  if (isEvalHeaderLine(trimmed)) return true;
-
-  if (/^深さ|^ノード|^時間|^NPS|^Hash|^TB/.test(trimmed)) return true;
-
-  if (/読み筋/.test(trimmed)) {
-    const body = extractReadingBody(trimmed);
-    if (body) pending.readingLine = body;
-    for (const m of extractMarkedMoves(body || trimmed)) {
-      pushCandidate(pending, m);
-    }
-    return true;
-  }
-
-  if (/^[*＊#]/.test(trimmed) || /^候補/.test(trimmed)) {
-    const engine = parseEngineCommentLine(trimmed);
-    if (engine.candidate1Move) pushCandidate(pending, engine.candidate1Move);
-    return true;
-  }
-
-  const evalOnly = parseEngineEvalLine(trimmed);
-  if (evalOnly != null && /^評価/.test(trimmed)) return true;
-
-  return false;
+  const state = createPreMoveAnalysisState();
+  state.pending = pending;
+  const before = pending.readingLine + pending.candidates.join(",");
+  processPreMoveLine(state, line);
+  pending.candidates = state.pending.candidates;
+  pending.readingLine = state.pending.readingLine;
+  const after = pending.readingLine + pending.candidates.join(",");
+  return before !== after || isEngineHeaderLine(line) || isCandidateHeaderLine(line) || isEvalHeaderLine(line) || /読み筋/.test(line);
 }
 
 export function sideMark(side: "sente" | "gote"): "▲" | "△" {
   return side === "sente" ? "▲" : "△";
 }
 
-/** これから指す側の候補手を pending から選ぶ（読み筋の先頭手を優先） */
 export function pickCandidateForSide(
   pending: PendingMoveAnalysis,
   side: "sente" | "gote",
@@ -116,4 +198,12 @@ export function applyPendingToMaps(
   const candidate = pickCandidateForSide(pending, side, actualMove);
   if (candidate) addCandidate(moveNumber, candidate);
   if (pending.readingLine) setReading(moveNumber, pending.readingLine);
+}
+
+export function resetPreMoveState(): PreMoveAnalysisState {
+  return createPreMoveAnalysisState();
+}
+
+export function hasPendingContent(pending: PendingMoveAnalysis): boolean {
+  return pending.candidates.length > 0 || pending.readingLine.length > 0;
 }
