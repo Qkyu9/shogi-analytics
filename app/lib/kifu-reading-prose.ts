@@ -1,4 +1,15 @@
-import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
+/** 読み筋・候補手を文章化（持ち駒の推測はしない。手番を明示する） */
+
+const MOVE_TOKEN_RE = /[▲△][^▲△]*?(?=\s*[▲△]|$)/g;
+const DEST_RE = /^([０-９0-9]?[一二三四五六七八九]|[１-９1-9][一二三四五六七八九])/;
+
+function sideLabel(mark: "▲" | "△"): string {
+  return mark === "▲" ? "先手が" : "後手が";
+}
+
+function markOf(token: string): "▲" | "△" {
+  return token.startsWith("△") ? "△" : "▲";
+}
 
 function normalizePieceLabel(body: string): string {
   if (/と/.test(body)) return "と";
@@ -15,15 +26,43 @@ function normalizePieceLabel(body: string): string {
   return "駒";
 }
 
-/** 符号付き指し手を短い日本語に変換（持ち駒の推測はしない） */
-export function describeShogiMove(move: string): string {
-  const body = move.replace(/^[▲△]/, "").trim();
-  if (!body) return "指し手";
+function parseDestination(body: string): string | null {
+  const m = body.replace(/^同\s*/, "").match(DEST_RE);
+  return m?.[1] ?? null;
+}
+
+/** 符号付き指し手を原文のまま抽出（(33) 等を保持） */
+export function extractMoveTokens(text: string): string[] {
+  const tokens: string[] = [];
+  for (const m of text.matchAll(MOVE_TOKEN_RE)) {
+    const token = m[0].trim();
+    if (token) tokens.push(token);
+  }
+  return tokens;
+}
+
+type MoveDescription = {
+  text: string;
+  dest: string | null;
+};
+
+/** 1手を手番付きで説明 */
+export function describeMoveWithSide(
+  token: string,
+  prevDest: string | null
+): MoveDescription {
+  const mark = markOf(token);
+  const side = sideLabel(mark);
+  const body = token.replace(/^[▲△]/, "").trim();
 
   if (/打/.test(body)) {
-    const dest = body.match(/^([０-９0-9一二三四五六七八九]+)/)?.[1] ?? "";
-    const piece = normalizePieceLabel(body.replace(/打.*/, ""));
-    return dest ? `${dest}に${piece}を打つ` : `${piece}を打つ`;
+    const dest = parseDestination(body.replace(/打.*/, "")) ?? "";
+    const piece = normalizePieceLabel(body);
+    const destPart = dest ? `${dest}に` : "";
+    return {
+      text: `${side}${destPart}${piece}を打つ（読み筋上）`,
+      dest: dest || null,
+    };
   }
 
   const fromMatch = body.match(/^(.+?)\((\d+)\)$/);
@@ -31,60 +70,108 @@ export function describeShogiMove(move: string): string {
     const main = fromMatch[1].trim();
     const from = fromMatch[2];
     const piece = normalizePieceLabel(main);
+
     if (/^同/.test(main)) {
-      return `${from}の${piece}で同マスに`;
+      const ref = prevDest ? `${prevDest}のマスで` : "同じマスで";
+      return {
+        text: `${side}${from}の${piece}が${ref}取る`,
+        dest: prevDest,
+      };
     }
-    const dest = main.replace(/^同\s*/, "").match(/^([０-９0-9一二三四五六七八九]+)/)?.[1];
+
+    const dest = parseDestination(main);
     if (dest) {
-      return `盤上${from}の${piece}を${dest}へ`;
+      return {
+        text: `${side}${from}マスの${piece}を${dest}へ`,
+        dest,
+      };
     }
-    return `${from}の${piece}を動かす`;
+    return { text: `${side}${from}の${piece}を動かす`, dest: null };
   }
 
-  const simple = body.match(/^([０-９0-9一二三四五六七八九]+)(.+)/);
-  if (simple) {
-    const piece = normalizePieceLabel(simple[2]);
-    return `${piece}を${simple[1]}へ`;
+  const dest = parseDestination(body);
+  const piece = normalizePieceLabel(body.replace(DEST_RE, ""));
+  if (dest && piece) {
+    return { text: `${side}${piece}を${dest}へ`, dest };
   }
 
-  return body;
+  return { text: `${side}${body}`, dest: null };
 }
 
-/** 読み筋を数手分、文章で要約 */
+/** @deprecated 手番なし。describeMoveWithSide を使うこと */
+export function describeShogiMove(move: string): string {
+  return describeMoveWithSide(move, null).text.replace(/^(先手が|後手が)/, "");
+}
+
+/** 候補手1手を強調した要約 */
+export function summarizeCandidateMove(
+  candidateMove: string,
+  readingLine: string
+): string {
+  const tokens = extractMoveTokens(readingLine);
+  const token =
+    tokens.find((t) => t.replace(/\([^)]*\)/g, "") === candidateMove.replace(/\([^)]*\)/g, "")) ??
+    tokens[0] ??
+    candidateMove;
+
+  return describeMoveWithSide(token, null).text;
+}
+
+/** 読み筋の続き（2手目以降）を手番付きで要約 */
+export function summarizeReadingContinuation(
+  readingLine: string,
+  maxFollowMoves = 3
+): string {
+  const tokens = extractMoveTokens(readingLine);
+  if (tokens.length <= 1) return "";
+
+  const parts: string[] = [];
+  let prevDest: string | null = describeMoveWithSide(tokens[0], null).dest;
+
+  for (const token of tokens.slice(1, 1 + maxFollowMoves)) {
+    const desc = describeMoveWithSide(token, prevDest);
+    parts.push(desc.text);
+    if (desc.dest) prevDest = desc.dest;
+  }
+
+  return parts.join("、");
+}
+
+/** 読み筋全体の要約（候補＋続き） */
 export function summarizeReadingAsProse(
   readingLine: string,
-  maxMoves = 5
+  candidateMove = "",
+  maxFollowMoves = 3
 ): string {
-  const moves = extractMarkedMoves(readingLine).slice(0, maxMoves);
-  if (moves.length === 0) return "";
+  const candidate = summarizeCandidateMove(candidateMove, readingLine);
+  const continuation = summarizeReadingContinuation(readingLine, maxFollowMoves);
 
-  const parts = moves.map(describeShogiMove);
-  if (parts.length === 1) return `${parts[0]}流れ`;
-  return `${parts.join("、")}、といった流れ`;
+  if (continuation) {
+    return `${candidate}。その後の読み筋では${continuation}。`;
+  }
+  return `${candidate}。`;
 }
 
-/** 保存済みAI文が棋譜事実と矛盾するか（持ち駒・取得の創作など） */
+/** 保存済みAI文は読み筋がある場合は使わない（持ち駒創作などを防ぐ） */
+export function shouldDiscardStoredIntent(
+  aiText: string,
+  readingLine: string,
+  candidateMove: string
+): boolean {
+  if (!readingLine.trim() || !candidateMove.trim()) return false;
+  const ai = aiText.trim();
+  if (!ai) return false;
+  if (/手に入れ|獲得|取った|持ち駒|新たに/.test(ai)) return true;
+  return true;
+}
+
+/** @deprecated shouldDiscardStoredIntent を使用 */
 export function aiIntentContradictsKifu(
   aiText: string,
   candidateMove: string,
   readingLine: string
 ): boolean {
-  const ai = aiText.trim();
-  if (!ai) return false;
-
-  if (!/手に入れ|獲得|取った|持ち駒|新たに/.test(ai)) {
-    return false;
-  }
-
-  const moves = [
-    candidateMove,
-    ...extractMarkedMoves(readingLine).slice(0, 4),
-  ].filter(Boolean);
-
-  return moves.some((m) => {
-    const body = m.replace(/^[▲△]/, "");
-    return /\(\d+\)/.test(m) && !/打/.test(body);
-  });
+  return shouldDiscardStoredIntent(aiText, readingLine, candidateMove);
 }
 
 /** 本譜・候補・読み筋から狙い文を機械生成 */
@@ -94,13 +181,13 @@ export function buildReadingBasedIntent(
   candidateMove: string,
   readingLine: string
 ): string {
-  const actualDesc = describeShogiMove(actualMove);
-  const candDesc = describeShogiMove(candidateMove);
-  const flow = summarizeReadingAsProse(readingLine, 4);
+  const actual = describeMoveWithSide(actualMove, null).text;
+  const candidate = summarizeCandidateMove(candidateMove, readingLine);
+  const continuation = summarizeReadingContinuation(readingLine, 2);
 
-  if (flow) {
-    return `${moveNumber}手目では${actualDesc}を選んだが、${candDesc}と進めば${flow}を作れる。`;
+  if (continuation) {
+    return `${moveNumber}手目では${actual}と指したが、候補として${candidate}。その後の読み筋では${continuation}。`;
   }
 
-  return `${moveNumber}手目では${actualDesc}を選んだが、${candDesc}という手もあった。`;
+  return `${moveNumber}手目では${actual}と指したが、候補として${candidate}。`;
 }

@@ -92,7 +92,7 @@ function TurningPointCard({
               </CollapsibleSection>
             )}
             <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 棋譜の読み筋から機械的に要約しています
+              ※ 候補手と読み筋の符号から機械的に要約しています（▲＝先手、△＝後手）
             </p>
           </div>
         )}
@@ -103,7 +103,7 @@ function TurningPointCard({
           </dd>
           {intent && (
             <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 候補手と読み筋から要約した内容です（持ち駒の創作はしていません）
+              ※ 候補手と読み筋から機械的に要約しています（持ち駒は推測しません）
             </p>
           )}
         </div>

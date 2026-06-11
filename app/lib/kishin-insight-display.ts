@@ -6,7 +6,6 @@ import {
 import { parseKifuEngineFacts } from "@/app/lib/kifu-engine-facts";
 import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
 import {
-  aiIntentContradictsKifu,
   buildReadingBasedIntent,
   summarizeReadingAsProse,
 } from "@/app/lib/kifu-reading-prose";
@@ -122,9 +121,6 @@ function buildIntentText(
   const ai = storedInsight.trim();
 
   if (readingLine && candidateMove) {
-    if (ai && !aiIntentContradictsKifu(ai, candidateMove, readingLine)) {
-      return ai;
-    }
     return buildReadingBasedIntent(
       moveNumber,
       actualMove,
@@ -155,7 +151,7 @@ function buildDisplayTurningPoint(
   );
   const readingLine = resolveReadingForTurningPoint(tp.moveNumber, kifuText);
   const readingSummary = readingLine
-    ? summarizeReadingAsProse(readingLine)
+    ? summarizeReadingAsProse(readingLine, candidateMove)
     : "";
   const intent = buildIntentText(
     tp.insight,
