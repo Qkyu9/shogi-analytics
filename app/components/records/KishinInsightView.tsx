@@ -1,8 +1,89 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CollapsibleSection } from "@/app/components/ui/CollapsibleSection";
-import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
+import { buildKishinDisplay } from "@/app/lib/kishin-insight-display";
 import type { KishinInsight } from "@/app/lib/types";
+
+function InsightBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold text-[var(--color-primary)]">
+        {title}
+      </h2>
+      <div className="text-sm leading-relaxed text-[var(--color-text)]">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function TurningPointCard({
+  index,
+  moveNumber,
+  actualMove,
+  candidateMove,
+  evalChange,
+  intent,
+}: {
+  index: number;
+  moveNumber: number;
+  actualMove: string;
+  candidateMove: string;
+  evalChange: string;
+  intent: string;
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <p className="text-sm font-semibold text-[var(--color-text)]">
+        要所 {index + 1}（{moveNumber}手目）
+      </p>
+      <dl className="mt-2 flex flex-col gap-1.5 text-sm">
+        <div className="flex gap-2">
+          <dt className="min-w-[3rem] shrink-0 font-medium text-[var(--color-text-sub)]">
+            本譜
+          </dt>
+          <dd className="text-[var(--color-text)]">
+            {actualMove || "（棋譜から取得できませんでした）"}
+          </dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="min-w-[3rem] shrink-0 font-medium text-[var(--color-text-sub)]">
+            候補
+          </dt>
+          <dd className="text-[var(--color-text)]">
+            {candidateMove || "（棋譜に候補手の記載なし）"}
+          </dd>
+        </div>
+        {evalChange && (
+          <div className="flex gap-2">
+            <dt className="min-w-[3rem] shrink-0 font-medium text-[var(--color-text-sub)]">
+              評価
+            </dt>
+            <dd className="text-[var(--color-text-sub)]">{evalChange}</dd>
+          </div>
+        )}
+        <div className="mt-1 flex flex-col gap-1">
+          <dt className="font-medium text-[var(--color-text-sub)]">狙い</dt>
+          <dd className="leading-relaxed text-[var(--color-text)]">
+            {intent || "（候補手の狙いは未生成です）"}
+          </dd>
+          {intent && (
+            <p className="text-xs text-[var(--color-text-sub)]">
+              ※ 読み筋・局面からAIが推定した内容です
+            </p>
+          )}
+        </div>
+      </dl>
+    </div>
+  );
+}
 
 export function KishinInsightView({
   kifuText,
@@ -43,58 +124,43 @@ export function KishinInsightView({
     );
   }
 
-  const summaries = insight.briefSummaries.filter(Boolean);
-  const turningCount = insight.turningPoints.length;
+  const display = buildKishinDisplay(insight, trimmedKifu);
 
   return (
-    <div className="flex flex-col gap-4">
-      <section>
-        <h2 className="mb-3 text-sm font-semibold">端的なまとめ</h2>
-        <ol className="flex flex-col gap-2.5 text-sm leading-relaxed">
-          {summaries.map((item, index) => (
-            <li key={index} className="flex gap-2">
-              <span className="min-w-[1.25rem] font-semibold text-[var(--color-primary)]">
-                {index + 1}.
-              </span>
-              <span className="text-[var(--color-text)]">{item}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
+    <div className="flex flex-col gap-5">
+      <InsightBlock title="序盤">
+        <p>{display.opening}</p>
+      </InsightBlock>
 
-      {turningCount > 0 && (
-        <CollapsibleSection
-          title="形勢が大きく動いた要所"
-          preview={`${turningCount}件の要所（タップで詳細）`}
-        >
+      {display.turningPoints.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-[var(--color-primary)]">
+            形勢が大きく動いた要所
+          </h2>
           <div className="flex flex-col gap-3">
-            {insight.turningPoints.map((tp, index) => (
-              <div
+            {display.turningPoints.map((tp, index) => (
+              <TurningPointCard
                 key={`${tp.moveNumber}-${index}`}
-                className="rounded-lg bg-[var(--color-surface)] p-3 text-sm"
-              >
-                <p className="font-semibold">
-                  {tp.moveNumber}手 {tp.move}
-                </p>
-                {tp.evalChange && (
-                  <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-                    評価変化: {tp.evalChange}
-                  </p>
-                )}
-                {tp.topCandidate &&
-                  normalizeMoveToken(tp.topCandidate) !==
-                    normalizeMoveToken(tp.move) && (
-                  <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-                    候補手: {tp.topCandidate}
-                  </p>
-                )}
-                {tp.insight && (
-                  <p className="mt-2 leading-relaxed">{tp.insight}</p>
-                )}
-              </div>
+                index={index}
+                moveNumber={tp.moveNumber}
+                actualMove={tp.actualMove}
+                candidateMove={tp.candidateMove}
+                evalChange={tp.evalChange}
+                intent={tp.intent}
+              />
             ))}
           </div>
-        </CollapsibleSection>
+        </section>
+      )}
+
+      <InsightBlock title="終盤">
+        <p>{display.endgame}</p>
+      </InsightBlock>
+
+      {display.lesson && (
+        <InsightBlock title="教訓">
+          <p>{display.lesson}</p>
+        </InsightBlock>
       )}
 
       <CollapsibleSection

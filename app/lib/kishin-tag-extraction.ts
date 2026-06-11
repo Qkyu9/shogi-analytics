@@ -145,6 +145,8 @@ export function getKishinHighlight(records: GameRecordDetail[]): string | null {
 
   const latest = withInsight[0]?.kishinInsight;
   if (!latest) return null;
+  const lesson = latest.briefSummaries[6]?.trim();
+  if (lesson) return lesson;
   return latest.briefSummaries.find((s) => s.trim()) ?? null;
 }
 

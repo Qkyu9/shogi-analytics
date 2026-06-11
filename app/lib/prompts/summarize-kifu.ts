@@ -7,7 +7,7 @@ import { formatKifuCandidateFactBlock } from "@/app/lib/kifu-engine-facts";
 import { formatKifuMoveFactBlock } from "@/app/lib/kifu-move-index";
 
 /** 端的なまとめの出力品質バージョン（旧データの再生成判定用） */
-export const KISHIN_INSIGHT_FORMAT_VERSION = 8;
+export const KISHIN_INSIGHT_FORMAT_VERSION = 10;
 
 const NARRATIVE_STYLE_RULES = `
 ## 文体方針（序盤1項目目と同じロジック）
@@ -130,7 +130,7 @@ ${formatKifuCandidateFactBlock(kifuText)}
 }
 
 briefSummaries は必ず7項目。
-turningPoints は3〜6件。move は必ず指し手一覧の該当手数と一致させる。
+turningPoints は最大3件（評価が大きく落ちた自分の手を優先）。move は必ず指し手一覧の該当手数と一致させる。
 **自分の手番（playerSide）の手だけ**を選ぶ（後手なら △ の手、先手なら ▲ の手）。
 topCandidate に書く手は、必ずその手数の候補一覧にあること。
 insight では序盤1項目目と同じく**流れ・駒・狙い**を先に述べる。「N手目では（本譜の要約）を選んだが、（候補の要約）なら（その後の流れ）という狙いがあった」の形。move/topCandidate フィールドには棋譜の手名を正確に入れる。

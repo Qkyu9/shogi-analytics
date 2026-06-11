@@ -24,6 +24,24 @@ export type KishinTurningPoint = {
   insight: string;
 };
 
+/** UI表示用：要所1件（本譜・候補は棋譜から機械取得） */
+export type KishinDisplayTurningPoint = {
+  moveNumber: number;
+  actualMove: string;
+  candidateMove: string;
+  evalChange: string;
+  /** LLMが推定した候補手の狙い（常時表示） */
+  intent: string;
+};
+
+/** UI表示用：棋神示唆のまとめ（第1段階） */
+export type KishinDisplayModel = {
+  opening: string;
+  turningPoints: KishinDisplayTurningPoint[];
+  endgame: string;
+  lesson: string;
+};
+
 /** 棋神からの示唆（口頭要約とは独立） */
 export type KishinInsight = {
   briefSummaries: string[];
