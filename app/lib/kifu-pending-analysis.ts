@@ -30,6 +30,16 @@ export function createPreMoveAnalysisState(): PreMoveAnalysisState {
   };
 }
 
+function extractInlineReadingLine(line: string): string {
+  const match = line.match(/読み筋\s+(.*)$/);
+  return match?.[1]?.trim() ?? "";
+}
+
+/** Engine行に候補・読み筋が同一行で含まれる棋神形式 */
+export function hasInlineEngineAnalysis(line: string): boolean {
+  return /読み筋/.test(line) || /候補(?:手)?[0-9０-９]/.test(line);
+}
+
 export function isEngineHeaderLine(line: string): boolean {
   const t = line.trim();
   return /^\*\*\s*Engine/i.test(t) || /^Engine\s+/i.test(t);
@@ -81,9 +91,13 @@ export function processPreMoveLine(
   const trimmed = line.trim();
   if (!trimmed) return;
 
-  if (isEngineHeaderLine(trimmed)) {
+  if (isEngineHeaderLine(trimmed) || (/Engine/i.test(trimmed) && hasInlineEngineAnalysis(trimmed))) {
     state.active = true;
     state.afterReadingHeader = false;
+    const inlineReading = extractInlineReadingLine(trimmed);
+    if (inlineReading) {
+      appendReadingChunk(state.pending, inlineReading);
+    }
     return;
   }
 

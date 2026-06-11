@@ -67,9 +67,23 @@ function looksLikeCoordinateOnly(text: string): boolean {
 }
 
 function extractEndgameText(insight: KishinInsight, kifuText: string): string {
-  const stored = insight.briefSummaries[5]?.trim();
-  if (stored && stored.length >= 12 && !looksLikeCoordinateOnly(stored)) {
-    return stored.replace(/^終盤[、,]?\s*/, "");
+  const storedRaw = insight.briefSummaries[5]?.trim();
+  const transitionRaw = insight.briefSummaries[4]?.trim();
+
+  if (storedRaw && storedRaw.length >= 12 && !looksLikeCoordinateOnly(storedRaw)) {
+    let text = storedRaw.replace(/^終盤[、,]?\s*/, "");
+
+    // 6項目目が「では」で始まる＝5項目目との接続文が分断されている
+    if (/^では[、,]/.test(text) && transitionRaw && transitionRaw.length >= 8) {
+      const transition = transitionRaw
+        .replace(/^終盤[、,]?\s*/, "")
+        .replace(/[。．]\s*$/, "");
+      text = `${transition}。${text.replace(/^では[、,]\s*/, "")}`;
+    } else {
+      text = text.replace(/^では[、,]\s*/, "");
+    }
+
+    return text;
   }
 
   const index = parseKifuMoveIndex(kifuText);
