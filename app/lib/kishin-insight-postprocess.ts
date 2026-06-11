@@ -10,10 +10,13 @@ import {
   toUserEval,
 } from "@/app/lib/kifu-eval-parse";
 import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
+import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
 import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
 const PLACEHOLDER_RE = /棋譜の候補手|（棋譜上の別手数の手のため候補として不適切）/;
 const MOVE_NUM_RE = /(\d+)\s*手目/g;
+const EVAL_ONLY_RE =
+  /評価(上|が)?(優|良|高|低|悪|下|上)|評価値|数値|マイナス|プラス/;
 
 export function sideFromTurningPoint(
   tp: KishinTurningPoint
@@ -37,6 +40,58 @@ function bestCandidateForMove(
   );
 }
 
+/** 読み筋から候補手の続き（展開）を短く要約 */
+function summarizeReadingContinuation(
+  readingLine: string,
+  candidate: string
+): string {
+  const moves = extractMarkedMoves(readingLine);
+  if (moves.length === 0) return "";
+
+  const candNorm = normalizeMoveToken(candidate);
+  const startIdx = moves.findIndex(
+    (m) => normalizeMoveToken(m) === candNorm
+  );
+  const tail =
+    startIdx >= 0 ? moves.slice(startIdx + 1, startIdx + 4) : moves.slice(1, 4);
+
+  if (tail.length > 0) {
+    return `${tail.join("から")}と続く展開`;
+  }
+  if (moves.length >= 2) {
+    return `${moves.slice(0, 3).join("から")}と続く展開`;
+  }
+  return "局面を保つ展開";
+}
+
+function stripEvalOnlyPhrases(text: string): string {
+  return text
+    .replace(/候補手[^。]*評価[^。]*/g, "")
+    .replace(/評価上優れていた/g, "")
+    .replace(/評価が[^。]*優れていた/g, "")
+    .replace(/評価[^。]*下がった/g, "")
+    .replace(/^[。、,\s]+/, "")
+    .trim();
+}
+
+function inferCandidateIntent(
+  facts: KifuEngineFacts,
+  moveNumber: number,
+  candidate: string,
+  tail: string
+): string {
+  const cleaned = stripEvalOnlyPhrases(tail);
+  if (cleaned && !EVAL_ONLY_RE.test(cleaned)) return cleaned;
+
+  const reading = facts.readingLineByNumber.get(moveNumber);
+  if (reading) {
+    const continuation = summarizeReadingContinuation(reading, candidate);
+    if (continuation) return continuation;
+  }
+
+  return "本譜より局面を保ちやすい手";
+}
+
 /** 本譜と候補手の対比文を棋譜データから組み立てる */
 export function formatActualVsCandidateSentence(
   moveNumber: number,
@@ -53,15 +108,21 @@ export function formatActualVsCandidateSentence(
     .replace(/^[。、,\s]+/, "")
     .trim();
 
-  let base: string;
-  if (candidate) {
-    base = `${moveNumber}手目では本譜${actual}を指したが、候補手${candidate}の方が評価上優れていた`;
-  } else {
-    base = `${moveNumber}手目の${actual}`;
+  if (!candidate) {
+    const onlyActual = `${moveNumber}手目の${actual}`;
+    if (!cleanedTail) return `${onlyActual}。`;
+    return `${onlyActual}。${cleanedTail.replace(/。+$/, "")}。`;
   }
 
-  if (!cleanedTail) return `${base}。`;
-  return `${base}。${cleanedTail.replace(/。+$/, "")}。`;
+  const intent = inferCandidateIntent(
+    facts,
+    moveNumber,
+    candidate,
+    cleanedTail
+  );
+  const intentPhrase = intent.endsWith("。") ? intent.slice(0, -1) : intent;
+
+  return `${moveNumber}手目では本譜${actual}を指したが、${candidate}と指せば${intentPhrase}という狙いがあった。`;
 }
 
 function extractMoveNumbers(text: string): number[] {
@@ -83,6 +144,7 @@ function enrichBriefSummaryLine(
 
   const needsEnrich =
     PLACEHOLDER_RE.test(text) ||
+    /評価上優れ|方が評価|候補手.*評価/.test(text) ||
     (/(\d+)\s*手目/.test(text) &&
       !/[▲△][^▲△、。，\s]+/.test(text.replace(PLACEHOLDER_RE, "")));
 
@@ -116,14 +178,24 @@ function enrichTurningPoint(
   }
 
   let insight = tp.insight.trim();
-  if (PLACEHOLDER_RE.test(insight) || !insight) {
+  const insightNeedsRewrite =
+    !insight ||
+    PLACEHOLDER_RE.test(insight) ||
+    /評価上優れ|候補手.*評価|方が評価/.test(insight);
+
+  if (insightNeedsRewrite) {
     insight = formatActualVsCandidateSentence(
       tp.moveNumber,
       facts,
       insight.replace(PLACEHOLDER_RE, "")
     );
-  } else if (PLACEHOLDER_RE.test(`${topCandidate}${insight}`)) {
-    insight = formatActualVsCandidateSentence(tp.moveNumber, facts, insight);
+  } else if (
+    candidate &&
+    !insight.includes(candidate) &&
+    !insight.includes("と指せば")
+  ) {
+    const intent = stripEvalOnlyPhrases(insight);
+    insight = formatActualVsCandidateSentence(tp.moveNumber, facts, intent);
   }
 
   return {

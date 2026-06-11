@@ -2,6 +2,7 @@ import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
 import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
 import {
   extractMarkedMoves,
+  parseEngineCommentLine,
   parseNumberedMoveLine,
 } from "@/app/lib/kifu-line-parse";
 
@@ -10,6 +11,8 @@ export type KifuEngineFacts = {
   moveByNumber: Map<number, string>;
   /** 手数 → その局面のエンジン候補手（候補1・読み筋から） */
   candidatesByNumber: Map<number, string[]>;
+  /** 手数 → 読み筋テキスト（候補手の狙い推定用） */
+  readingLineByNumber: Map<number, string>;
   /** 棋譜内に登場する全指し手（正規化済み） */
   allMovesNormalized: Set<string>;
 };
@@ -34,6 +37,7 @@ function registerMove(set: Set<string>, move: string) {
 export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
   const moveByNumber = new Map<number, string>();
   const candidatesByNumber = new Map<number, string[]>();
+  const readingLineByNumber = new Map<number, string>();
   const allMovesNormalized = new Set<string>();
 
   let currentMoveNumber: number | null = null;
@@ -70,8 +74,11 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
       }
 
       if (/読み筋/.test(line)) {
-        const body = line.replace(/^.*?読み筋\s*/, "");
-        for (const m of extractMarkedMoves(body)) {
+        const body = line.replace(/^.*?読み筋\s*[：:]?\s*/, "").trim();
+        if (body) {
+          readingLineByNumber.set(currentMoveNumber, body);
+        }
+        for (const m of extractMarkedMoves(body || line)) {
           addCandidate(candidatesByNumber, currentMoveNumber, m);
           registerMove(allMovesNormalized, m);
         }
@@ -88,6 +95,20 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
     for (const m of extractMarkedMoves(line)) {
       registerMove(allMovesNormalized, m);
     }
+
+    if (currentMoveNumber != null && /読み筋/.test(line)) {
+      const body = line.replace(/^.*?読み筋\s*[：:]?\s*/, "").trim();
+      if (body) readingLineByNumber.set(currentMoveNumber, body);
+    } else if (currentMoveNumber != null && /^[*＊#]/.test(line)) {
+      const engine = parseEngineCommentLine(line);
+      if (engine.candidate1Move) {
+        addCandidate(
+          candidatesByNumber,
+          currentMoveNumber,
+          engine.candidate1Move
+        );
+      }
+    }
   }
 
   for (const parsed of parseKifuWithEvals(kifuText)) {
@@ -100,7 +121,12 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
     }
   }
 
-  return { moveByNumber, candidatesByNumber, allMovesNormalized };
+  return {
+    moveByNumber,
+    candidatesByNumber,
+    readingLineByNumber,
+    allMovesNormalized,
+  };
 }
 
 export function formatKifuCandidateFactBlock(kifuText: string): string {
@@ -111,10 +137,12 @@ export function formatKifuCandidateFactBlock(kifuText: string): string {
     (a, b) => a[0] - b[0]
   )) {
     const cands = facts.candidatesByNumber.get(n) ?? [];
+    const reading = facts.readingLineByNumber.get(n);
     if (cands.length === 0) {
       lines.push(`${n}手 実戦:${move} / 候補:（棋譜に候補1・読み筋なし）`);
     } else {
-      lines.push(`${n}手 実戦:${move} / 候補:${cands.join("、")}`);
+      const readingPart = reading ? ` / 読み筋:${reading}` : "";
+      lines.push(`${n}手 実戦:${move} / 候補:${cands.join("、")}${readingPart}`);
     }
   }
 
