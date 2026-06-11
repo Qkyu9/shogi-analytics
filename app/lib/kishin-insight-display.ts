@@ -1,10 +1,12 @@
+import {
+  resolveActualMoveForTurningPoint,
+  resolveCandidateForTurningPoint,
+  resolveReadingForTurningPoint,
+} from "@/app/lib/kifu-candidate-resolver";
 import { parseKifuEngineFacts } from "@/app/lib/kifu-engine-facts";
 import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
 import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
-import {
-  normalizeMoveToken,
-  parseKifuMoveIndex,
-} from "@/app/lib/kifu-move-index";
+import { parseKifuMoveIndex } from "@/app/lib/kifu-move-index";
 import type {
   KishinDisplayModel,
   KishinDisplayTurningPoint,
@@ -13,71 +15,6 @@ import type {
 } from "@/app/lib/types";
 
 export const MAX_KISHIN_TURNING_POINTS = 3;
-
-function bestCandidateForMove(
-  moveNumber: number,
-  actual: string,
-  facts: ReturnType<typeof parseKifuEngineFacts>
-): string {
-  const cands = facts.candidatesByNumber.get(moveNumber) ?? [];
-  if (!actual) return cands[0] ?? "";
-  return (
-    cands.find(
-      (c) => normalizeMoveToken(c) !== normalizeMoveToken(actual)
-    ) ?? ""
-  );
-}
-
-function resolveActualMove(
-  moveNumber: number,
-  kifuText: string,
-  fallback?: string
-): string {
-  const facts = parseKifuEngineFacts(kifuText);
-  const fromFacts = facts.moveByNumber.get(moveNumber);
-  if (fromFacts) return fromFacts;
-
-  const fromIndex = parseKifuMoveIndex(kifuText).get(moveNumber);
-  if (fromIndex) return fromIndex;
-
-  const parsed = parseKifuWithEvals(kifuText).find(
-    (m) => m.moveNumber === moveNumber
-  );
-  if (parsed?.move) return parsed.move;
-
-  return fallback?.trim() ?? "";
-}
-
-function resolveCandidateMove(
-  moveNumber: number,
-  kifuText: string,
-  actual: string,
-  fallback?: string
-): string {
-  const facts = parseKifuEngineFacts(kifuText);
-  const fromFacts = bestCandidateForMove(moveNumber, actual, facts);
-  if (fromFacts) return fromFacts;
-
-  const parsed = parseKifuWithEvals(kifuText).find(
-    (m) => m.moveNumber === moveNumber
-  );
-  if (parsed?.candidate1Move) {
-    const c = parsed.candidate1Move.trim();
-    if (c && normalizeMoveToken(c) !== normalizeMoveToken(actual)) return c;
-  }
-
-  const reading = facts.readingLineByNumber.get(moveNumber);
-  if (reading) {
-    for (const m of extractMarkedMoves(reading)) {
-      if (normalizeMoveToken(m) !== normalizeMoveToken(actual)) return m;
-    }
-  }
-
-  const fb = fallback?.trim() ?? "";
-  if (fb && normalizeMoveToken(fb) !== normalizeMoveToken(actual)) return fb;
-
-  return "";
-}
 
 /** 手数の重複を除き、最大件数までに絞る */
 export function dedupeTurningPoints(
@@ -157,24 +94,68 @@ function extractLessonText(insight: KishinInsight): string {
   return fallback?.trim() ?? "";
 }
 
+/** 読み筋テキストから候補手の流れを短く要約（持ち駒などの推測は含めない） */
+function summarizeReadingFlow(readingLine: string): string {
+  const moves = extractMarkedMoves(readingLine);
+  if (moves.length === 0) return "";
+
+  const labels = moves.slice(0, 4).map((m) => {
+    const body = m.replace(/^[▲△]/, "");
+    if (/打/.test(body)) return `${body.replace(/打.*/, "")}を打つ`;
+    if (/角|馬/.test(body)) return "角を活かす";
+    if (/飛|竜/.test(body)) return "飛車を活かす";
+    if (/金/.test(body)) return "金を動かす";
+    if (/銀/.test(body)) return "銀を動かす";
+    if (/桂/.test(body)) return "桂を活かす";
+    if (/玉|王/.test(body)) return "玉を動かす";
+    return "攻めを続ける";
+  });
+
+  const unique = [...new Set(labels)];
+  return `読み筋どおり${unique.join("、")}流れを作れる。`;
+}
+
+function buildIntentText(
+  storedInsight: string,
+  readingLine: string,
+  candidateMove: string
+): string {
+  const ai = storedInsight.trim();
+  if (ai) return ai;
+
+  if (readingLine && candidateMove) {
+    const flow = summarizeReadingFlow(readingLine);
+    if (flow) return flow;
+  }
+
+  return "";
+}
+
 function buildDisplayTurningPoint(
   tp: KishinTurningPoint,
   kifuText: string
 ): KishinDisplayTurningPoint {
-  const actualMove = resolveActualMove(tp.moveNumber, kifuText, tp.move);
-  const candidateMove = resolveCandidateMove(
+  const actualMove = resolveActualMoveForTurningPoint(
+    tp.moveNumber,
+    kifuText,
+    tp.move
+  );
+  const candidateMove = resolveCandidateForTurningPoint(
     tp.moveNumber,
     kifuText,
     actualMove,
     tp.topCandidate
   );
+  const readingLine = resolveReadingForTurningPoint(tp.moveNumber, kifuText);
+  const intent = buildIntentText(tp.insight, readingLine, candidateMove);
 
   return {
     moveNumber: tp.moveNumber,
     actualMove,
     candidateMove,
     evalChange: tp.evalChange.trim(),
-    intent: tp.insight.trim(),
+    readingLine,
+    intent,
   };
 }
 

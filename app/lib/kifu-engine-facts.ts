@@ -65,7 +65,7 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
     }
 
     if (inEngineBlock && currentMoveNumber != null) {
-      if (/^候補[１12]?/.test(line)) {
+      if (/^候補(?:手)?[１12]?/.test(line)) {
         for (const m of extractMarkedMoves(line)) {
           addCandidate(candidatesByNumber, currentMoveNumber, m);
           registerMove(allMovesNormalized, m);
@@ -94,6 +94,14 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
 
     for (const m of extractMarkedMoves(line)) {
       registerMove(allMovesNormalized, m);
+    }
+
+    if (currentMoveNumber != null && /^候補(?:手)?/.test(line)) {
+      for (const m of extractMarkedMoves(line)) {
+        addCandidate(candidatesByNumber, currentMoveNumber, m);
+        registerMove(allMovesNormalized, m);
+      }
+      continue;
     }
 
     if (currentMoveNumber != null && /読み筋/.test(line)) {

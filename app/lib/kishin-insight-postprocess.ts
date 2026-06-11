@@ -15,6 +15,10 @@ import {
 } from "@/app/lib/kifu-move-index";
 import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
 import { dedupeTurningPoints } from "@/app/lib/kishin-insight-display";
+import {
+  resolveActualMoveForTurningPoint,
+  resolveCandidateForTurningPoint,
+} from "@/app/lib/kifu-candidate-resolver";
 import { KISHIN_INSIGHT_FORMAT_VERSION } from "@/app/lib/prompts/summarize-kifu";
 import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
@@ -273,15 +277,13 @@ function enrichTurningPoint(
   facts: KifuEngineFacts,
   kifuText: string
 ): KishinTurningPoint {
-  const actual = resolveActualMove(
+  const actual = resolveActualMoveForTurningPoint(
     tp.moveNumber,
-    facts,
     kifuText,
     tp.move
   );
-  const candidate = resolveCandidateForMove(
+  const candidate = resolveCandidateForTurningPoint(
     tp.moveNumber,
-    facts,
     kifuText,
     actual,
     tp.topCandidate

@@ -30,6 +30,7 @@ function TurningPointCard({
   actualMove,
   candidateMove,
   evalChange,
+  readingLine,
   intent,
 }: {
   index: number;
@@ -37,6 +38,7 @@ function TurningPointCard({
   actualMove: string;
   candidateMove: string;
   evalChange: string;
+  readingLine: string;
   intent: string;
 }) {
   return (
@@ -69,6 +71,17 @@ function TurningPointCard({
             <dd className="text-[var(--color-text-sub)]">{evalChange}</dd>
           </div>
         )}
+        {readingLine && (
+          <div className="mt-1 flex flex-col gap-1">
+            <dt className="font-medium text-[var(--color-text-sub)]">読み筋</dt>
+            <dd className="font-mono text-xs leading-relaxed text-[var(--color-text)]">
+              {readingLine}
+            </dd>
+            <p className="text-xs text-[var(--color-text-sub)]">
+              ※ 棋譜に記載された読み筋です
+            </p>
+          </div>
+        )}
         <div className="mt-1 flex flex-col gap-1">
           <dt className="font-medium text-[var(--color-text-sub)]">狙い</dt>
           <dd className="leading-relaxed text-[var(--color-text)]">
@@ -76,7 +89,7 @@ function TurningPointCard({
           </dd>
           {intent && (
             <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 読み筋・局面からAIが推定した内容です
+              ※ AIが読み筋・局面から推定した内容です。持ち駒などは棋譜の読み筋と照合してください
             </p>
           )}
         </div>
@@ -146,6 +159,7 @@ export function KishinInsightView({
                 actualMove={tp.actualMove}
                 candidateMove={tp.candidateMove}
                 evalChange={tp.evalChange}
+                readingLine={tp.readingLine}
                 intent={tp.intent}
               />
             ))}
