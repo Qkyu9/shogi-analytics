@@ -1,6 +1,7 @@
 "use client";
 
 import { CollapsibleSection } from "@/app/components/ui/CollapsibleSection";
+import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
 import type { KishinInsight } from "@/app/lib/types";
 
 export function KishinInsightView({
@@ -80,9 +81,11 @@ export function KishinInsightView({
                     評価変化: {tp.evalChange}
                   </p>
                 )}
-                {tp.topCandidate && (
+                {tp.topCandidate &&
+                  normalizeMoveToken(tp.topCandidate) !==
+                    normalizeMoveToken(tp.move) && (
                   <p className="mt-1 text-xs text-[var(--color-text-sub)]">
-                    棋神候補: {tp.topCandidate}
+                    候補手: {tp.topCandidate}
                   </p>
                 )}
                 {tp.insight && (

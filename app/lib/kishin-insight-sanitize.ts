@@ -5,6 +5,7 @@ import {
   parseKifuEngineFacts,
   type KifuEngineFacts,
 } from "@/app/lib/kifu-engine-facts";
+import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
 import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
 import type { KishinInsight, KishinTurningPoint } from "@/app/lib/types";
 
@@ -17,6 +18,27 @@ function moveNumbersInText(text: string): number[] {
     nums.push(Number(m[1]));
   }
   return nums;
+}
+
+function resolveReplacementMove(
+  moveNumber: number | null,
+  facts: KifuEngineFacts,
+  prefer: "actual" | "candidate"
+): string {
+  if (moveNumber == null) return "";
+  if (prefer === "actual") {
+    return facts.moveByNumber.get(moveNumber) ?? "";
+  }
+  const actual = facts.moveByNumber.get(moveNumber);
+  const cands = facts.candidatesByNumber.get(moveNumber) ?? [];
+  if (!actual) return cands[0] ?? "";
+  return (
+    cands.find(
+      (c) => normalizeMoveToken(c) !== normalizeMoveToken(actual)
+    ) ??
+    cands[0] ??
+    actual
+  );
 }
 
 function replaceHallucinatedMove(
@@ -32,20 +54,14 @@ function replaceHallucinatedMove(
 
   if (moveExistsInKifu(facts, move)) {
     if (moveNumber == null) return text;
-    return text.replace(
-      move,
-      "（棋譜上の別手数の手のため候補として不適切）"
-    );
+    const replacement = resolveReplacementMove(moveNumber, facts, "actual");
+    return replacement ? text.replace(move, replacement) : text.replace(move, "");
   }
 
-  if (moveNumber != null) {
-    const cands = facts.candidatesByNumber.get(moveNumber) ?? [];
-    if (cands.length > 0) {
-      return text.replace(move, cands[0]);
-    }
-  }
-
-  return text.replace(move, "棋譜の候補手");
+  const replacement =
+    resolveReplacementMove(moveNumber, facts, "candidate") ||
+    resolveReplacementMove(moveNumber, facts, "actual");
+  return replacement ? text.replace(move, replacement) : text.replace(move, "");
 }
 
 function sanitizeTextMoves(text: string, facts: KifuEngineFacts): string {
@@ -58,42 +74,38 @@ function sanitizeTextMoves(text: string, facts: KifuEngineFacts): string {
     result = replaceHallucinatedMove(result, move, primaryMoveNum, facts);
   }
 
-  return result
-    .replace(/（棋譜上の別手数の手のため候補として不適切）/g, "棋譜の候補手")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return result.replace(/\s{2,}/g, " ").replace(/、+/g, "、").trim();
 }
 
 function sanitizeTurningPoint(
   tp: KishinTurningPoint,
   facts: KifuEngineFacts
 ): KishinTurningPoint {
-  const move = tp.move;
-  let topCandidate = tp.topCandidate;
-
-  if (move && !isActualMoveAt(facts, tp.moveNumber, move)) {
-    const actual = facts.moveByNumber.get(tp.moveNumber);
-    if (actual) {
-      // alignTurningPointsWithKifu で補正済みのはずだが念のため
-    }
-  }
+  const actual = facts.moveByNumber.get(tp.moveNumber) ?? tp.move;
+  let topCandidate = tp.topCandidate.trim();
 
   if (topCandidate) {
     const candMoves = extractMarkedMoves(topCandidate);
     let sanitized = topCandidate;
     for (const cm of candMoves) {
       if (!isCandidateForMove(facts, tp.moveNumber, cm)) {
-        const alts = facts.candidatesByNumber.get(tp.moveNumber) ?? [];
-        sanitized = alts[0]
-          ? topCandidate.replace(cm, alts[0])
-          : topCandidate.replace(cm, "棋譜の候補手");
+        const alt = resolveReplacementMove(tp.moveNumber, facts, "candidate");
+        sanitized = alt ? topCandidate.replace(cm, alt) : topCandidate.replace(cm, "");
       }
     }
-    topCandidate = sanitized;
+    topCandidate = sanitized.trim();
+  }
+
+  if (
+    !topCandidate ||
+    normalizeMoveToken(topCandidate) === normalizeMoveToken(actual)
+  ) {
+    topCandidate = resolveReplacementMove(tp.moveNumber, facts, "candidate");
   }
 
   return {
     ...tp,
+    move: actual,
     insight: sanitizeTextMoves(tp.insight, facts),
     topCandidate,
   };

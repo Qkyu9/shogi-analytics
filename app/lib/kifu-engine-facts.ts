@@ -1,4 +1,5 @@
 import { normalizeMoveToken } from "@/app/lib/kifu-move-index";
+import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
 import {
   extractMarkedMoves,
   parseNumberedMoveLine,
@@ -86,6 +87,16 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
 
     for (const m of extractMarkedMoves(line)) {
       registerMove(allMovesNormalized, m);
+    }
+  }
+
+  for (const parsed of parseKifuWithEvals(kifuText)) {
+    if (!moveByNumber.has(parsed.moveNumber)) {
+      moveByNumber.set(parsed.moveNumber, parsed.move);
+    }
+    registerMove(allMovesNormalized, parsed.move);
+    if (parsed.candidate1Move) {
+      addCandidate(candidatesByNumber, parsed.moveNumber, parsed.candidate1Move);
     }
   }
 

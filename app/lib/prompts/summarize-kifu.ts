@@ -7,7 +7,7 @@ import { formatKifuCandidateFactBlock } from "@/app/lib/kifu-engine-facts";
 import { formatKifuMoveFactBlock } from "@/app/lib/kifu-move-index";
 
 /** 端的なまとめの出力品質バージョン（旧データの再生成判定用） */
-export const KISHIN_INSIGHT_FORMAT_VERSION = 4;
+export const KISHIN_INSIGHT_FORMAT_VERSION = 5;
 
 const FACT_AND_INTENT_RULES = `
 ## 事実と推測の境界（最重要）
@@ -45,6 +45,7 @@ const BRIEF_SUMMARY_RULES = `
 2. **棋譜引用の符号付き指し手**（一覧と完全一致）
 3. 口頭要約にあれば**その手の狙い**（1フレーズ）。なければ書かない
 4. 評価下落なら **候補手一覧にある手1つ** と評価の事実。一覧に無ければ手名を書かない
+5. 書き方の例: 「29手目では本譜△６八金を指したが、候補手△５九角の方が評価上優れていた」
 
 ### 7項目の構成
 1. 序盤の流れ（棋譜上の手を1つ含んでもよい）
@@ -65,7 +66,11 @@ ${BRIEF_SUMMARY_RULES}
 共通ルール:
 - 棋譜ヘッダのプレイヤー名で自分を特定しない。記録された playerSide のみ使う
 - すべて自分（学習者）目線。自分の手番の候補手は自分が指すべき手として述べる
+- **turningPoints と briefSummaries 2〜6項目目は、自分の手番（playerSide）の手だけを対象にする**
+  - 自分=先手なら ▲ の手のみ、自分=後手なら △ の手のみ
+  - 相手の手（▲/△が自分と逆）は要所に含めない
 - 評価値はエンジン標準（プラス=先手有利）。playerSide に応じて自分有利か読み替える
+- 「棋譜の候補手」などのプレースホルダー文字列は絶対に書かない。必ず棋譜一覧の具体的手名を書く
 - 文体は常体（だ・である調）の短文
 - 出力はJSONのみ`;
 
@@ -99,7 +104,9 @@ ${formatKifuCandidateFactBlock(kifuText)}
 
 briefSummaries は必ず7項目。
 turningPoints は3〜6件。move は必ず指し手一覧の該当手数と一致させる。
+**自分の手番（playerSide）の手だけ**を選ぶ（後手なら △ の手、先手なら ▲ の手）。
 topCandidate に書く手は、必ずその手数の候補一覧にあること。
+briefSummaries 2〜6項目目も同様に自分の手のみ述べる。7項目目（改善点・教訓）は口頭要約の教訓をそのまま活かしてよい。
 
 棋譜データ:
 ---
