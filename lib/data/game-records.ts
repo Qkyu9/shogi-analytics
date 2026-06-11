@@ -17,6 +17,7 @@ import {
   hasVoiceInputData,
 } from "@/app/lib/record-input-flags";
 import { migrateTagsToCurrentLabels } from "@/app/lib/weakness-tags";
+import { enrichKishinInsight } from "@/app/lib/kishin-insight-postprocess";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 function venueLabel(type: VenueType): string {
@@ -101,7 +102,10 @@ function toDetail(row: DbRecord): GameRecordDetail {
     insightTags: [],
     positions,
     kifuText: row.kifu_text ?? undefined,
-    kishinInsight: row.kishin_insight ?? undefined,
+    kishinInsight:
+      row.kishin_insight && row.kifu_text?.trim()
+        ? enrichKishinInsight(row.kishin_insight, row.kifu_text)
+        : row.kishin_insight ?? undefined,
     sourceInputText: row.source_input_text ?? undefined,
   };
 }

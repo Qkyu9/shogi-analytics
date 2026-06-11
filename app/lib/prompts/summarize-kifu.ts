@@ -7,7 +7,7 @@ import { formatKifuCandidateFactBlock } from "@/app/lib/kifu-engine-facts";
 import { formatKifuMoveFactBlock } from "@/app/lib/kifu-move-index";
 
 /** 端的なまとめの出力品質バージョン（旧データの再生成判定用） */
-export const KISHIN_INSIGHT_FORMAT_VERSION = 7;
+export const KISHIN_INSIGHT_FORMAT_VERSION = 8;
 
 const NARRATIVE_STYLE_RULES = `
 ## 文体方針（序盤1項目目と同じロジック）
