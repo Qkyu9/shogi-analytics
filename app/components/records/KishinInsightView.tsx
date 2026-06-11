@@ -31,6 +31,7 @@ function TurningPointCard({
   candidateMove,
   evalChange,
   readingLine,
+  readingSummary,
   intent,
 }: {
   index: number;
@@ -39,6 +40,7 @@ function TurningPointCard({
   candidateMove: string;
   evalChange: string;
   readingLine: string;
+  readingSummary: string;
   intent: string;
 }) {
   return (
@@ -71,14 +73,26 @@ function TurningPointCard({
             <dd className="text-[var(--color-text-sub)]">{evalChange}</dd>
           </div>
         )}
-        {readingLine && (
+        {(readingSummary || readingLine) && (
           <div className="mt-1 flex flex-col gap-1">
             <dt className="font-medium text-[var(--color-text-sub)]">読み筋</dt>
-            <dd className="font-mono text-xs leading-relaxed text-[var(--color-text)]">
-              {readingLine}
-            </dd>
+            {readingSummary && (
+              <dd className="leading-relaxed text-[var(--color-text)]">
+                {readingSummary}
+              </dd>
+            )}
+            {readingLine && (
+              <CollapsibleSection
+                title="棋譜原文（符号）"
+                preview={`${readingLine.length}文字`}
+              >
+                <p className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-[var(--color-text)]">
+                  {readingLine}
+                </p>
+              </CollapsibleSection>
+            )}
             <p className="text-xs text-[var(--color-text-sub)]">
-              ※ 棋譜に記載された読み筋です
+              ※ 棋譜の読み筋から機械的に要約しています
             </p>
           </div>
         )}
@@ -89,7 +103,7 @@ function TurningPointCard({
           </dd>
           {intent && (
             <p className="text-xs text-[var(--color-text-sub)]">
-              ※ AIが読み筋・局面から推定した内容です。持ち駒などは棋譜の読み筋と照合してください
+              ※ 候補手と読み筋から要約した内容です（持ち駒の創作はしていません）
             </p>
           )}
         </div>
@@ -163,6 +177,7 @@ export function KishinInsightView({
                 candidateMove={tp.candidateMove}
                 evalChange={tp.evalChange}
                 readingLine={tp.readingLine}
+                readingSummary={tp.readingSummary}
                 intent={tp.intent}
               />
             ))}

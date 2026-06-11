@@ -34,6 +34,8 @@ export type KishinDisplayTurningPoint = {
   intent: string;
   /** 棋譜に記載された読み筋（原文） */
   readingLine: string;
+  /** 読み筋の文章要約（棋譜から機械生成） */
+  readingSummary: string;
 };
 
 /** UI表示用：棋神示唆のまとめ（第1段階） */

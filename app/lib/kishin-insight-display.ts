@@ -5,7 +5,11 @@ import {
 } from "@/app/lib/kifu-candidate-resolver";
 import { parseKifuEngineFacts } from "@/app/lib/kifu-engine-facts";
 import { parseKifuWithEvals } from "@/app/lib/kifu-eval-parse";
-import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
+import {
+  aiIntentContradictsKifu,
+  buildReadingBasedIntent,
+  summarizeReadingAsProse,
+} from "@/app/lib/kifu-reading-prose";
 import { parseKifuMoveIndex } from "@/app/lib/kifu-move-index";
 import type {
   KishinDisplayModel,
@@ -108,39 +112,28 @@ function extractLessonText(insight: KishinInsight): string {
   return fallback?.trim() ?? "";
 }
 
-/** 読み筋テキストから候補手の流れを短く要約（持ち駒などの推測は含めない） */
-function summarizeReadingFlow(readingLine: string): string {
-  const moves = extractMarkedMoves(readingLine);
-  if (moves.length === 0) return "";
-
-  const labels = moves.slice(0, 4).map((m) => {
-    const body = m.replace(/^[▲△]/, "");
-    if (/打/.test(body)) return `${body.replace(/打.*/, "")}を打つ`;
-    if (/角|馬/.test(body)) return "角を活かす";
-    if (/飛|竜/.test(body)) return "飛車を活かす";
-    if (/金/.test(body)) return "金を動かす";
-    if (/銀/.test(body)) return "銀を動かす";
-    if (/桂/.test(body)) return "桂を活かす";
-    if (/玉|王/.test(body)) return "玉を動かす";
-    return "攻めを続ける";
-  });
-
-  const unique = [...new Set(labels)];
-  return `読み筋どおり${unique.join("、")}流れを作れる。`;
-}
-
 function buildIntentText(
   storedInsight: string,
   readingLine: string,
-  candidateMove: string
+  candidateMove: string,
+  actualMove: string,
+  moveNumber: number
 ): string {
   const ai = storedInsight.trim();
-  if (ai) return ai;
 
   if (readingLine && candidateMove) {
-    const flow = summarizeReadingFlow(readingLine);
-    if (flow) return flow;
+    if (ai && !aiIntentContradictsKifu(ai, candidateMove, readingLine)) {
+      return ai;
+    }
+    return buildReadingBasedIntent(
+      moveNumber,
+      actualMove,
+      candidateMove,
+      readingLine
+    );
   }
+
+  if (ai) return ai;
 
   return "";
 }
@@ -161,7 +154,16 @@ function buildDisplayTurningPoint(
     tp.topCandidate
   );
   const readingLine = resolveReadingForTurningPoint(tp.moveNumber, kifuText);
-  const intent = buildIntentText(tp.insight, readingLine, candidateMove);
+  const readingSummary = readingLine
+    ? summarizeReadingAsProse(readingLine)
+    : "";
+  const intent = buildIntentText(
+    tp.insight,
+    readingLine,
+    candidateMove,
+    actualMove,
+    tp.moveNumber
+  );
 
   return {
     moveNumber: tp.moveNumber,
@@ -169,6 +171,7 @@ function buildDisplayTurningPoint(
     candidateMove,
     evalChange: tp.evalChange.trim(),
     readingLine,
+    readingSummary,
     intent,
   };
 }
