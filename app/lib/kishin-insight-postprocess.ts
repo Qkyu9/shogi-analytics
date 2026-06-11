@@ -40,28 +40,52 @@ function bestCandidateForMove(
   );
 }
 
-/** 読み筋から候補手の続き（展開）を短く要約 */
-function summarizeReadingContinuation(
-  readingLine: string,
-  candidate: string
-): string {
+const PIECE_RE = /(と|成香|成桂|成銀|成金|成飛|成角|馬|竜|歩|角|飛|金|銀|桂|香|玉|王)/;
+
+/** 座標手を駒・動きの要約に変換（序盤1項目目と同じ文体用） */
+function describeMoveStrategically(move: string): string {
+  const body = move.replace(/^[▲△]/, "");
+  const pieceMatch = body.match(PIECE_RE);
+  const piece = pieceMatch?.[1] ?? "駒";
+
+  if (/打/.test(body)) {
+    if (piece === "歩") return "歩を打つ";
+    return `${piece}を打つ`;
+  }
+  if (/成/.test(body) && !/成香|成桂|成銀|成金|成飛|成角/.test(body)) {
+    return `${piece}を成る`;
+  }
+  if (piece === "角" || piece === "馬") return "角を利かせる";
+  if (piece === "飛" || piece === "竜") return "飛車を活かす";
+  if (piece === "金" || piece === "成金") return "金を上がる形";
+  if (piece === "銀" || piece === "成銀") return "銀を動かす";
+  if (piece === "桂" || piece === "成桂") return "桂を跳ねる";
+  if (piece === "玉" || piece === "王") return "玉を動かす";
+  if (piece === "歩" || piece === "と") return "歩を進める";
+  return `${piece}を動かす`;
+}
+
+/** 読み筋からその後の流れを戦略的に要約 */
+function summarizeReadingStrategically(readingLine: string): string {
   const moves = extractMarkedMoves(readingLine);
   if (moves.length === 0) return "";
 
-  const candNorm = normalizeMoveToken(candidate);
-  const startIdx = moves.findIndex(
-    (m) => normalizeMoveToken(m) === candNorm
-  );
-  const tail =
-    startIdx >= 0 ? moves.slice(startIdx + 1, startIdx + 4) : moves.slice(1, 4);
+  const themes = moves.slice(0, 4).map(describeMoveStrategically);
+  const unique = [...new Set(themes)];
 
-  if (tail.length > 0) {
-    return `${tail.join("から")}と続く展開`;
+  if (unique.some((t) => t.includes("角"))) {
+    return "角を軸に攻めを続けられる流れ";
   }
-  if (moves.length >= 2) {
-    return `${moves.slice(0, 3).join("から")}と続く展開`;
+  if (unique.some((t) => t.includes("金"))) {
+    return "金を連続して動かし自陣を固める流れ";
   }
-  return "局面を保つ展開";
+  if (unique.some((t) => t.includes("飛"))) {
+    return "飛車を活かして攻めを継続できる流れ";
+  }
+  if (unique.some((t) => t.includes("銀"))) {
+    return "銀を連携させて局面を保てる流れ";
+  }
+  return "読み筋どおりに攻めを続けられる流れ";
 }
 
 function stripEvalOnlyPhrases(text: string): string {
@@ -85,11 +109,16 @@ function inferCandidateIntent(
 
   const reading = facts.readingLineByNumber.get(moveNumber);
   if (reading) {
-    const continuation = summarizeReadingContinuation(reading, candidate);
+    const continuation = summarizeReadingStrategically(reading);
     if (continuation) return continuation;
   }
 
-  return "本譜より局面を保ちやすい手";
+  const candTheme = describeMoveStrategically(candidate);
+  if (candTheme.includes("角")) return "自陣を整えつつ相手の攻めを遅らせる流れ";
+  if (candTheme.includes("金")) return "自陣を固めて形を保てる流れ";
+  if (candTheme.includes("飛")) return "攻めを継続できる流れ";
+
+  return "本譜より局面を保ちやすい流れ";
 }
 
 /** 本譜と候補手の対比文を棋譜データから組み立てる */
@@ -121,8 +150,10 @@ export function formatActualVsCandidateSentence(
     cleanedTail
   );
   const intentPhrase = intent.endsWith("。") ? intent.slice(0, -1) : intent;
+  const actualSummary = describeMoveStrategically(actual);
+  const candidateSummary = describeMoveStrategically(candidate);
 
-  return `${moveNumber}手目では本譜${actual}を指したが、${candidate}と指せば${intentPhrase}という狙いがあった。`;
+  return `${moveNumber}手目では${actualSummary}を選んだが、${candidateSummary}手なら${intentPhrase}という狙いがあった。`;
 }
 
 function extractMoveNumbers(text: string): number[] {
@@ -139,8 +170,8 @@ function enrichBriefSummaryLine(
   index: number
 ): string {
   if (!text.trim()) return text;
-  // 7項目目（教訓）はプレースホルダーが無ければそのまま
-  if (index === 6 && !PLACEHOLDER_RE.test(text)) return text;
+  // 1項目目（序盤）・7項目目（教訓）はプレースホルダーが無ければそのまま
+  if ((index === 0 || index === 6) && !PLACEHOLDER_RE.test(text)) return text;
 
   const needsEnrich =
     PLACEHOLDER_RE.test(text) ||
