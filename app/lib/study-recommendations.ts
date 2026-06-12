@@ -141,28 +141,32 @@ export function buildStudyMenu(
   );
   const midgameOwned = booksForCategory(ownedBooks, "midgame", topTags, 2);
   const endgameOwned = booksForCategory(ownedBooks, "endgame", topTags, 1);
-  const defenseOwned = booksForCategory(ownedBooks, "defense", topTags, 1);
+
+  const midgameBase =
+    (dataSource === "kishin" || dataSource === "both") && kishinHighlight
+      ? `${sourceNote}より「${topTag}」が重点。${kishinHighlight}`
+      : `${sourceNote}より弱点「${topTag}」が最多。${
+          topStrategy ? `採用戦型は${topStrategy}。` : ""
+        }中盤の判断と手筋を優先する。`;
 
   const allocations: StudyAllocation[] = [
     {
       item: "中盤手筋",
       percentage: 40,
-      reason: buildAllocationReason(
-        (dataSource === "kishin" || dataSource === "both") && kishinHighlight
-          ? `${sourceNote}より「${topTag}」が重点。${kishinHighlight}`
-          : `${sourceNote}より弱点「${topTag}」が最多。${
-              topStrategy ? `採用戦型は${topStrategy}。` : ""
-            }中盤の判断と手筋を優先する。`,
-        midgameOwned.length > 0 ? midgameOwned : defenseOwned
-      ),
-      books: (midgameOwned.length > 0 ? midgameOwned : defenseOwned).map(
-        (b) => ({
-          bookId: b.id ?? b.title,
-          title: b.title,
-          studyAction: b.studyAction || DEFAULT_STUDY_ACTION[b.category],
-          isOwned: true,
-        })
-      ),
+      // 中盤カテゴリの本がない場合に別カテゴリの本で代用しない（誤解のもとになるため）
+      reason:
+        midgameOwned.length > 0
+          ? buildAllocationReason(midgameBase, midgameOwned)
+          : `${midgameBase} 中盤カテゴリの手持ち本が未登録のため、本のおすすめはありません。`,
+      books:
+        midgameOwned.length > 0
+          ? midgameOwned.map((b) => ({
+              bookId: b.id ?? b.title,
+              title: b.title,
+              studyAction: b.studyAction || DEFAULT_STUDY_ACTION[b.category],
+              isOwned: true,
+            }))
+          : undefined,
     },
     {
       item: "実戦",

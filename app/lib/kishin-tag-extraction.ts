@@ -28,12 +28,13 @@ const KISHIN_TAG_RULES: TagRule[] = [
   },
   {
     tag: "守りの手筋選択",
-    patterns: [/受け/, /守り/, /金/, /銀.*整/, /陣形/, /利き/],
+    // 「金」「利き」のような頻出語は毎局ヒットして判定を歪めるため使わない
+    patterns: [/受け/, /守り/, /銀.*整/, /陣形/],
     weight: 3,
   },
   {
     tag: "攻めの手順選択",
-    patterns: [/攻め/, /飛車/, /桂.*上/, /伸ば/],
+    patterns: [/攻め/, /桂.*上/, /伸ば/],
     weight: 2,
   },
   {
@@ -53,7 +54,7 @@ const KISHIN_TAG_RULES: TagRule[] = [
   },
   {
     tag: "寄せの読み漏れ",
-    patterns: [/終盤/, /寄せ/, /龍/, /成り/],
+    patterns: [/終盤/, /寄せ/],
     weight: 2,
   },
   {

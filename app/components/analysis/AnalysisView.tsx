@@ -44,6 +44,11 @@ export function AnalysisView() {
     () => computeTagStats(filteredRecords),
     [filteredRecords]
   );
+  // 表示用：局面フェーズ（序盤・中盤・終盤）でまとめた弱点分析
+  const groupedTagStats = useMemo(
+    () => computeTagStats(filteredRecords, { groupByPhase: true }),
+    [filteredRecords]
+  );
   const myStrategyStats = useMemo(
     () => computeMyStrategyStats(filteredRecords, { groupByParent: true }),
     [filteredRecords]
@@ -115,7 +120,10 @@ export function AnalysisView() {
             <div className="my-2 h-px bg-[var(--color-border)]" />
           )}
 
-          <WeaknessRanking stats={stats} lowDataWarning={lowDataWarning} />
+          <WeaknessRanking
+            stats={groupedTagStats}
+            lowDataWarning={lowDataWarning}
+          />
 
           <div className="my-2 h-px bg-[var(--color-border)]" />
 

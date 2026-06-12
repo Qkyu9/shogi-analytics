@@ -68,3 +68,25 @@ export function migrateTagsToCurrentLabels(tags: string[]): string[] {
   const migrated = tags.map(normalizeWeaknessTag).filter(Boolean);
   return [...new Set(migrated)];
 }
+
+/**
+ * 弱点タグ → 局面フェーズ（序盤・中盤・終盤）の対応表。
+ * 弱点分析の表示で上位概念にまとめるために使う。
+ * 表にないタグ（手動で付けた固有のタグなど）はそのまま独立表示される。
+ */
+export const WEAKNESS_PHASE_MAP: Record<string, string> = {
+  [OPENING_FORMATION_TAG]: "序盤",
+  [MIDGAME_READ_TAG]: "中盤",
+  守りの手筋選択: "中盤",
+  攻めの手順選択: "中盤",
+  想定外の手への対応不足: "中盤",
+  勝ち切りの手筋不足: "終盤",
+  寄せの読み漏れ: "終盤",
+  [MATE_MISS_TAG]: "終盤",
+  入玉対策: "終盤",
+};
+
+/** 弱点タグから局面フェーズを返す。対応表にない場合はそのまま返す */
+export function resolveWeaknessPhase(tag: string): string {
+  return WEAKNESS_PHASE_MAP[tag] ?? tag;
+}

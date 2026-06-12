@@ -114,6 +114,8 @@ export type TagStat = {
   count: number;
   percentage: number;
   latestRecordId: string | null;
+  /** 局面フェーズ（序盤・中盤・終盤）でまとめた場合の内訳 */
+  children?: TagStat[];
 };
 
 export type StrategyStat = {

@@ -5,7 +5,7 @@ import {
 } from "./handicap";
 import { resolveParentStrategy } from "./strategy-grouping";
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
-import { normalizeWeaknessTag } from "./weakness-tags";
+import { normalizeWeaknessTag, resolveWeaknessPhase } from "./weakness-tags";
 
 export type AnalysisPeriod = "all" | "month";
 
@@ -73,7 +73,11 @@ function sortStats(stats: StrategyStat[]): StrategyStat[] {
 export function computeStrategyStats(
   records: GameRecordDetail[],
   pick: (record: GameRecordDetail) => string,
-  options?: { groupByParent?: boolean }
+  options?: {
+    groupByParent?: boolean;
+    /** 親カテゴリの決め方。省略時は戦型の対応表を使う */
+    resolveParent?: (name: string) => string;
+  }
 ): StrategyStat[] {
   const buckets = new Map<string, ResultBucket>();
 
@@ -93,10 +97,11 @@ export function computeStrategyStats(
     );
   }
 
-  // 親カテゴリ（上位概念）ごとに元の戦型名のバケツをまとめる
+  // 親カテゴリ（上位概念）ごとに元の名前のバケツをまとめる
+  const resolveParent = options.resolveParent ?? resolveParentStrategy;
   const groups = new Map<string, Map<string, ResultBucket>>();
   for (const [name, bucket] of buckets) {
-    const parent = resolveParentStrategy(name);
+    const parent = resolveParent(name);
     const group = groups.get(parent) ?? new Map<string, ResultBucket>();
     group.set(name, bucket);
     groups.set(parent, group);
@@ -163,6 +168,13 @@ export function computePlayerSideStats(
   );
 }
 
+/** 手合ラベルの上位概念（上手・下手）。末尾の表記で機械的に判定する */
+function resolveHandicapParent(label: string): string {
+  if (label.endsWith("上手")) return "上手";
+  if (label.endsWith("下手")) return "下手";
+  return label;
+}
+
 export function computeHandicapStats(
   records: GameRecordDetail[]
 ): StrategyStat[] {
@@ -173,12 +185,17 @@ export function computeHandicapStats(
     if (isEvenHandicapWithSide(label)) return false;
     return true;
   });
-  return computeStrategyStats(withHandicap, (r) =>
-    normalizeHandicapLabel(r.handicap.trim())
+  return computeStrategyStats(
+    withHandicap,
+    (r) => normalizeHandicapLabel(r.handicap.trim()),
+    { groupByParent: true, resolveParent: resolveHandicapParent }
   );
 }
 
-export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
+export function computeTagStats(
+  records: GameRecordDetail[],
+  options?: { groupByPhase?: boolean }
+): TagStat[] {
   const counts = new Map<string, number>();
   const latestByTag = new Map<string, { id: string; playedAt: string }>();
 
@@ -199,12 +216,53 @@ export function computeTagStats(records: GameRecordDetail[]): TagStat[] {
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
   if (total === 0) return [];
 
-  return [...counts.entries()]
-    .map(([tag, count]) => ({
-      tag,
+  const toStat = (tag: string): TagStat => ({
+    tag,
+    count: counts.get(tag) ?? 0,
+    percentage: Math.round(((counts.get(tag) ?? 0) / total) * 100),
+    latestRecordId: latestByTag.get(tag)?.id ?? null,
+  });
+
+  if (!options?.groupByPhase) {
+    return [...counts.keys()].map(toStat).sort((a, b) => b.count - a.count);
+  }
+
+  // 局面フェーズ（序盤・中盤・終盤）ごとにタグをまとめる
+  const groups = new Map<string, string[]>();
+  for (const tag of counts.keys()) {
+    const phase = resolveWeaknessPhase(tag);
+    const group = groups.get(phase) ?? [];
+    group.push(tag);
+    groups.set(phase, group);
+  }
+
+  const grouped = [...groups.entries()].map(([phase, tags]) => {
+    const children = tags.map(toStat).sort((a, b) => b.count - a.count);
+    const count = children.reduce((sum, c) => sum + c.count, 0);
+
+    let latest: { id: string; playedAt: string } | null = null;
+    for (const tag of tags) {
+      const cur = latestByTag.get(tag);
+      if (
+        cur &&
+        (!latest || new Date(cur.playedAt) > new Date(latest.playedAt))
+      ) {
+        latest = cur;
+      }
+    }
+
+    const stat: TagStat = {
+      tag: phase,
       count,
       percentage: Math.round((count / total) * 100),
-      latestRecordId: latestByTag.get(tag)?.id ?? null,
-    }))
-    .sort((a, b) => b.count - a.count);
+      latestRecordId: latest?.id ?? null,
+    };
+    // フェーズと同名のタグ1つだけなら内訳は不要
+    if (children.length > 1 || children[0].tag !== phase) {
+      stat.children = children;
+    }
+    return stat;
+  });
+
+  return grouped.sort((a, b) => b.count - a.count);
 }
