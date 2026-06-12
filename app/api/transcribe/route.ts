@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildTranscribeHint } from "@/app/lib/shogi-vocabulary";
 
 export const maxDuration = 60; // Vercel サーバーレス関数のタイムアウトを60秒に延長
 
@@ -19,6 +20,8 @@ async function transcribeWithModel(
   form.append("file", audio, `recording.${ext}`);
   form.append("model", model);
   form.append("language", "ja");
+  // 将棋用語の事前ヒント（誤認識の予防）
+  form.append("prompt", buildTranscribeHint());
 
   return fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",

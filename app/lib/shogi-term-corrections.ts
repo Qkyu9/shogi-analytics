@@ -27,12 +27,16 @@ export const SHOGI_CORRECTION_SEED: ShogiCorrection[] = [
   { wrong: "角成り", correct: "角成" },
   { wrong: "飛成り", correct: "飛成" },
   { wrong: "疑問種", correct: "疑問手" },
+  { wrong: "試験飛車", correct: "四間飛車", note: "しけんびしゃの誤変換" },
+  { wrong: "四軒飛車", correct: "四間飛車" },
+  { wrong: "3軒飛車", correct: "三間飛車" },
+  { wrong: "三軒飛車", correct: "三間飛車" },
+  { wrong: "向い飛車", correct: "向かい飛車", note: "表記統一" },
 ];
 
-/** プロンプト用：代表例だけ列挙（全件を手で増やす必要はない） */
+/** プロンプト用：誤変換の例を列挙 */
 export function formatCorrectionExamplesForPrompt(): string {
   return SHOGI_CORRECTION_SEED.filter((c) => c.wrong !== c.correct)
-    .slice(0, 20)
     .map((c) => `- ${c.wrong} → ${c.correct}${c.note ? `（${c.note}）` : ""}`)
     .join("\n");
 }

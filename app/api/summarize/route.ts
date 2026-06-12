@@ -97,7 +97,9 @@ function toDraft(
       lesson: finalizeText(p.lesson?.trim() ?? ""),
     }));
 
-  const myStrategyRaw = raw.myStrategy?.trim() ?? "";
+  const myStrategyRaw = applyDictionaryCorrections(
+    raw.myStrategy?.trim() ?? ""
+  );
   const venueType = normalizeVenue(raw.venueType) ?? fallbackVenue ?? "other";
   const transcriptText = transcript ?? "";
 

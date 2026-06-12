@@ -66,7 +66,7 @@ function ownedBookToPick(
   };
 }
 
-function famousToPurchase(title: string, topTag: string): BookSuggestion | null {
+function famousToPurchase(title: string): BookSuggestion | null {
   const known = findKnownBook(title);
   if (!known || !known.isFamous) return null;
   return {
@@ -203,7 +203,7 @@ export function buildStudyMenu(
     const displayTitle = profile.canonicalTitle;
     if (isBookOwned(ownedBooks, profile)) continue;
     if (!profile.coversTags.some((t) => topTags.includes(t))) continue;
-    const suggestion = famousToPurchase(displayTitle, topTag);
+    const suggestion = famousToPurchase(displayTitle);
     if (suggestion) purchaseSuggestions.push(suggestion);
   }
 

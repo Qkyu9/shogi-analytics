@@ -1,5 +1,6 @@
 import { MIGI_GYOKU_STRATEGY_GUIDE } from "@/app/lib/migi-gyoku-strategy";
 import { formatCorrectionExamplesForPrompt } from "@/app/lib/shogi-term-corrections";
+import { formatVocabularyForPrompt } from "@/app/lib/shogi-vocabulary";
 import { SHOGI_REFLECTION_KNOWLEDGE } from "./shogi-reflection-knowledge";
 
 export const CORRECT_TRANSCRIPT_SYSTEM = `あなたは将棋の対局振り返り音声の文字起こしを補正する専門家です。
@@ -16,6 +17,11 @@ ${MIGI_GYOKU_STRATEGY_GUIDE}
 - 勝敗・感想・時間の話はそのまま残す
 - 話していない内容は推測で足さない
 - 要約や整形はしない。文字起こしの補正のみ
+
+## 将棋の正式用語リスト（正解リスト）
+発音が近い語・文脈的にこれらを指していると考えられる語が出てきたら、必ず以下の正式表記に揃える。
+（例: 試験飛車・四軒飛車 → 四間飛車、三軒飛車 → 三間飛車）
+${formatVocabularyForPrompt()}
 
 ## よくある誤変換の例
 ${formatCorrectionExamplesForPrompt()}
