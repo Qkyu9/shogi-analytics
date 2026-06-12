@@ -120,6 +120,8 @@ export type StrategyStat = {
   draws: number;
   winRate: number;
   latestRecordId: string | null;
+  /** 上位概念にまとめた場合の内訳（元の戦型名ごとの成績） */
+  children?: StrategyStat[];
 };
 
 export type StudyBookPick = {

@@ -3,6 +3,7 @@ import {
   normalizeHandicapLabel,
   PLAYER_SIDE_LABELS,
 } from "./handicap";
+import { resolveParentStrategy } from "./strategy-grouping";
 import type { GameRecordDetail, StrategyStat, TagStat } from "./types";
 import { normalizeWeaknessTag } from "./weakness-tags";
 
@@ -65,9 +66,14 @@ function bucketToStat(strategy: string, bucket: ResultBucket): StrategyStat {
   };
 }
 
+function sortStats(stats: StrategyStat[]): StrategyStat[] {
+  return stats.sort((a, b) => b.total - a.total || b.winRate - a.winRate);
+}
+
 export function computeStrategyStats(
   records: GameRecordDetail[],
-  pick: (record: GameRecordDetail) => string
+  pick: (record: GameRecordDetail) => string,
+  options?: { groupByParent?: boolean }
 ): StrategyStat[] {
   const buckets = new Map<string, ResultBucket>();
 
@@ -79,21 +85,65 @@ export function computeStrategyStats(
     buckets.set(name, bucket);
   }
 
-  return [...buckets.entries()]
-    .map(([strategy, bucket]) => bucketToStat(strategy, bucket))
-    .sort((a, b) => b.total - a.total || b.winRate - a.winRate);
+  if (!options?.groupByParent) {
+    return sortStats(
+      [...buckets.entries()].map(([strategy, bucket]) =>
+        bucketToStat(strategy, bucket)
+      )
+    );
+  }
+
+  // 親カテゴリ（上位概念）ごとに元の戦型名のバケツをまとめる
+  const groups = new Map<string, Map<string, ResultBucket>>();
+  for (const [name, bucket] of buckets) {
+    const parent = resolveParentStrategy(name);
+    const group = groups.get(parent) ?? new Map<string, ResultBucket>();
+    group.set(name, bucket);
+    groups.set(parent, group);
+  }
+
+  const stats = [...groups.entries()].map(([parent, group]) => {
+    const merged = emptyBucket();
+    for (const bucket of group.values()) {
+      merged.wins += bucket.wins;
+      merged.losses += bucket.losses;
+      merged.draws += bucket.draws;
+      if (
+        bucket.latestPlayedAt &&
+        (!merged.latestPlayedAt ||
+          new Date(bucket.latestPlayedAt) > new Date(merged.latestPlayedAt))
+      ) {
+        merged.latestPlayedAt = bucket.latestPlayedAt;
+        merged.latestRecordId = bucket.latestRecordId;
+      }
+    }
+    const stat = bucketToStat(parent, merged);
+
+    const childStats = sortStats(
+      [...group.entries()].map(([name, bucket]) => bucketToStat(name, bucket))
+    );
+    // 親と同名の戦型1つだけなら内訳は不要
+    if (childStats.length > 1 || childStats[0].strategy !== parent) {
+      stat.children = childStats;
+    }
+    return stat;
+  });
+
+  return sortStats(stats);
 }
 
 export function computeMyStrategyStats(
-  records: GameRecordDetail[]
+  records: GameRecordDetail[],
+  options?: { groupByParent?: boolean }
 ): StrategyStat[] {
-  return computeStrategyStats(records, (r) => r.myStrategy);
+  return computeStrategyStats(records, (r) => r.myStrategy, options);
 }
 
 export function computeOpponentStrategyStats(
-  records: GameRecordDetail[]
+  records: GameRecordDetail[],
+  options?: { groupByParent?: boolean }
 ): StrategyStat[] {
-  return computeStrategyStats(records, (r) => r.opponentStrategy);
+  return computeStrategyStats(records, (r) => r.opponentStrategy, options);
 }
 
 export function computePlayerSideStats(

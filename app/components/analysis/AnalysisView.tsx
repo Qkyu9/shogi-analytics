@@ -45,11 +45,12 @@ export function AnalysisView() {
     [filteredRecords]
   );
   const myStrategyStats = useMemo(
-    () => computeMyStrategyStats(filteredRecords),
+    () => computeMyStrategyStats(filteredRecords, { groupByParent: true }),
     [filteredRecords]
   );
   const opponentStrategyStats = useMemo(
-    () => computeOpponentStrategyStats(filteredRecords),
+    () =>
+      computeOpponentStrategyStats(filteredRecords, { groupByParent: true }),
     [filteredRecords]
   );
   const playerSideStats = useMemo(
