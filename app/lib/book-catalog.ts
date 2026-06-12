@@ -14,7 +14,7 @@ export const BOOK_CATEGORY_LABELS: Record<BookCategory, string> = {
   midgame: "中盤",
   endgame: "終盤・寄せ",
   defense: "受け・凌ぎ",
-  general: "総合",
+  general: "総合（大局観・構想など）",
 };
 
 export const BOOK_CATEGORY_OPTIONS: BookCategory[] = [
@@ -42,7 +42,11 @@ export const CATEGORY_COVERS_TAGS: Record<BookCategory, string[]> = {
     "守りの手筋選択",
   ],
   opening: ["序盤の駒組み", "型の選択・準備不足"],
-  general: ["型の選択・準備不足", "想定外の手への対応不足"],
+  general: [
+    "型の選択・準備不足",
+    "想定外の手への対応不足",
+    "中盤の読み（攻めるか受けるか）",
+  ],
 };
 
 export const DEFAULT_STUDY_ACTION: Record<BookCategory, string> = {
@@ -51,7 +55,7 @@ export const DEFAULT_STUDY_ACTION: Record<BookCategory, string> = {
   midgame: "弱点に近い手筋の章を読む",
   endgame: "寄せ手筋の問題を読む",
   defense: "凌ぎ・受けの手筋を読む",
-  general: "基礎手筋を復習する",
+  general: "一局の構想・考え方を学ぶ",
 };
 
 export function profileToDisplayTitle(profile: KnownBookProfile): string {

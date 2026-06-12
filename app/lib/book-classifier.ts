@@ -99,7 +99,7 @@ async function classifyWithAI(
 - defense: 受け・凌ぎ（凌ぎの手筋200等）
 - opening: 序盤・戦型・定跡
 - midgame: 中盤手筋
-- general: 総合・基礎`;
+- general: 総合（大局観・構想・上達論など、特定の局面に限らない本）`;
 
   const user = `棋書のタイトル: ${title}
 
