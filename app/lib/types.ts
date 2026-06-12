@@ -2,11 +2,15 @@ import type { PlayerSide } from "./handicap";
 
 export type GameResult = "win" | "loss" | "draw";
 
-export type VenueType =
-  | "shogi_wars_10min"
-  | "shogi_wars_sprint"
-  | "kion"
-  | "other";
+/** 対局場所の一覧。新しい場所を追加するときはここと VENUE_OPTIONS に追記する */
+export const VENUE_TYPES = [
+  "shogi_wars_10min",
+  "shogi_wars_sprint",
+  "kion",
+  "other",
+] as const;
+
+export type VenueType = (typeof VENUE_TYPES)[number];
 
 export type GamePosition = {
   sceneDescription: string;

@@ -1,5 +1,6 @@
 import { saveDraft } from "@/app/lib/draft-storage";
 import { parseJsonResponse } from "@/app/lib/ios-audio";
+import { correctShogiTranscript } from "@/app/lib/transcribe-client";
 import { saveTranscriptCache } from "@/app/lib/transcript-cache";
 import type { GameRecordDraft } from "@/app/lib/types";
 
@@ -22,24 +23,7 @@ export async function runTranscriptPipeline(
 
   onStep?.("correcting");
 
-  const correctRes = await fetch("/api/correct-transcript", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript: trimmed }),
-  });
-
-  const correctData = await parseJsonResponse<{
-    text?: string;
-    rawText?: string;
-    error?: string;
-  }>(correctRes);
-
-  if (!correctRes.ok) {
-    throw new Error(correctData.error ?? "将棋用語の補正に失敗しました。");
-  }
-
-  const corrected = correctData.text?.trim() || trimmed;
-  const raw = correctData.rawText ?? trimmed;
+  const { corrected, rawText: raw } = await correctShogiTranscript(trimmed);
 
   onStep?.("summarizing");
 

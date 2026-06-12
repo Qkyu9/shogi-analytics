@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { GameRecordDraft, GamePosition, VenueType } from "@/app/lib/types";
+import { VENUE_TYPES } from "@/app/lib/types";
+import {
+  callLlmText,
+  extractJsonBlock,
+  hasLlmApiKey,
+} from "@/app/lib/llm-client";
 import {
   SUMMARIZE_SYSTEM_PROMPT,
   SUMMARIZE_USER_PROMPT,
@@ -19,13 +25,6 @@ function finalizeText(text: string): string {
   return resolveMigiGyokuInText(applyDictionaryCorrections(text));
 }
 
-const VALID_VENUES: VenueType[] = [
-  "shogi_wars_10min",
-  "shogi_wars_sprint",
-  "kion",
-  "other",
-];
-
 type SummarizeRequest = {
   transcript: string;
   venueType?: VenueType;
@@ -44,15 +43,8 @@ type RawSummary = {
   tags?: string[];
 };
 
-function extractJson(text: string): RawSummary {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonText = fenced ? fenced[1].trim() : trimmed;
-  return JSON.parse(jsonText) as RawSummary;
-}
-
 function normalizeVenue(value?: string): VenueType {
-  if (value && VALID_VENUES.includes(value as VenueType)) {
+  if (value && (VENUE_TYPES as readonly string[]).includes(value)) {
     return value as VenueType;
   }
   return "other";
@@ -140,85 +132,8 @@ function toDraft(
   };
 }
 
-async function callClaude(
-  apiKey: string,
-  transcript: string,
-  nowJst: string
-): Promise<string> {
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514";
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      system: SUMMARIZE_SYSTEM_PROMPT,
-      messages: [
-        { role: "user", content: SUMMARIZE_USER_PROMPT(transcript, nowJst) },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error("Claude API error:", detail);
-    throw new Error("要約の生成に失敗しました。もう一度お試しください。");
-  }
-
-  const data = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-  };
-  const text = data.content?.find((c) => c.type === "text")?.text;
-  if (!text) throw new Error("要約の生成結果が空でした。");
-  return text;
-}
-
-async function callOpenAI(
-  apiKey: string,
-  transcript: string,
-  nowJst: string
-): Promise<string> {
-  const model = process.env.OPENAI_SUMMARIZE_MODEL ?? "gpt-4o";
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SUMMARIZE_SYSTEM_PROMPT },
-        { role: "user", content: SUMMARIZE_USER_PROMPT(transcript, nowJst) },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error("OpenAI summarize error:", detail);
-    throw new Error("要約の生成に失敗しました。もう一度お試しください。");
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("要約の生成結果が空でした。");
-  return text;
-}
-
 export async function POST(request: NextRequest) {
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
-
-  if (!anthropicKey && !openaiKey) {
+  if (!hasLlmApiKey()) {
     return NextResponse.json(
       {
         error:
@@ -240,11 +155,16 @@ export async function POST(request: NextRequest) {
     }
 
     const nowJst = nowJstForPrompt();
-    const summaryText = anthropicKey
-      ? await callClaude(anthropicKey, transcript, nowJst)
-      : await callOpenAI(openaiKey!, transcript, nowJst);
+    const summaryText = await callLlmText({
+      system: SUMMARIZE_SYSTEM_PROMPT,
+      user: SUMMARIZE_USER_PROMPT(transcript, nowJst),
+      maxTokens: 4096,
+      failMessage: "要約の生成に失敗しました。もう一度お試しください。",
+      emptyMessage: "要約の生成結果が空でした。",
+      logLabel: "summarize",
+    });
 
-    const raw = extractJson(summaryText);
+    const raw = extractJsonBlock<RawSummary>(summaryText);
     const draft = toDraft(raw, body.venueType, transcript);
 
     return NextResponse.json({ draft, transcript });

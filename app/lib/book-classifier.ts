@@ -8,6 +8,11 @@ import {
   getCanonicalBookTitle,
   type KnownBookProfile,
 } from "@/app/lib/known-books";
+import {
+  callLlmText,
+  extractJsonBlock,
+  hasLlmApiKey,
+} from "@/app/lib/llm-client";
 
 export type BookClassification = {
   title: string;
@@ -58,13 +63,6 @@ function fromKnownProfile(
   };
 }
 
-function extractJson(text: string): Record<string, unknown> {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonText = fenced ? fenced[1].trim() : trimmed;
-  return JSON.parse(jsonText) as Record<string, unknown>;
-}
-
 function normalizeCategory(value: unknown): BookCategory {
   const v = String(value ?? "").trim();
   if (BOOK_CATEGORY_OPTIONS.includes(v as BookCategory)) {
@@ -77,9 +75,7 @@ async function classifyWithAI(
   title: string,
   webContext: string
 ): Promise<BookClassification> {
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!anthropicKey && !openaiKey) {
+  if (!hasLlmApiKey()) {
     return {
       title: title.trim(),
       category: "general",
@@ -120,52 +116,16 @@ JSON形式:
   "reason": "判別理由（1文）"
 }`;
 
-  let rawText = "";
-  if (anthropicKey) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514",
-        max_tokens: 512,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-    });
-    if (!res.ok) throw new Error("棋書の判別に失敗しました");
-    const data = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-    };
-    rawText = data.content?.find((c) => c.type === "text")?.text ?? "";
-  } else {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_SUMMARIZE_MODEL ?? "gpt-4o",
-        max_tokens: 512,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!res.ok) throw new Error("棋書の判別に失敗しました");
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    rawText = data.choices?.[0]?.message?.content ?? "";
-  }
+  const rawText = await callLlmText({
+    system,
+    user,
+    maxTokens: 512,
+    failMessage: "棋書の判別に失敗しました",
+    emptyMessage: "棋書の判別に失敗しました",
+    logLabel: "classify-book",
+  });
 
-  const raw = extractJson(rawText);
+  const raw = extractJsonBlock<Record<string, unknown>>(rawText);
   const category = normalizeCategory(raw.category);
   const studyAction =
     String(raw.studyAction ?? "").trim() || DEFAULT_STUDY_ACTION[category];

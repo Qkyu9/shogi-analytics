@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
   assembleRecordingBlob,
-  audioBlobExtension,
-  buildUploadChunks,
   getWebKitRecorderMimeType,
   IOS_TIMESLICE_MS,
   isIOSOrWebKit,
-  parseJsonResponse,
 } from "@/app/lib/ios-audio";
+import {
+  correctShogiTranscript,
+  transcribeBlobToText,
+} from "@/app/lib/transcribe-client";
 import {
   createLiveSpeechSession,
   type LiveSpeechSession,
@@ -77,42 +78,6 @@ export function FieldVoiceInput({
 
   useEffect(() => () => cleanup(), []);
 
-  const transcribeChunk = async (chunk: Blob): Promise<string> => {
-    const ext = audioBlobExtension(chunk);
-    const form = new FormData();
-    form.append("audio", chunk, `field-recording.${ext}`);
-    const res = await fetch("/api/transcribe", { method: "POST", body: form });
-    const data = await parseJsonResponse<{ text?: string; error?: string }>(res);
-    if (!res.ok) {
-      throw new Error(data.error ?? "文字起こしに失敗しました。");
-    }
-    return data.text?.trim() ?? "";
-  };
-
-  const transcribeBlob = async (blob: Blob): Promise<string> => {
-    if (blob.size === 0) return "";
-    const chunks = await buildUploadChunks(blob);
-    const parts: string[] = [];
-    for (const chunk of chunks) {
-      const text = await transcribeChunk(chunk);
-      if (text) parts.push(text);
-    }
-    return parts.join("\n").trim();
-  };
-
-  const correctTranscript = async (raw: string): Promise<string> => {
-    const res = await fetch("/api/correct-transcript", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript: raw }),
-    });
-    const data = await parseJsonResponse<{ text?: string; error?: string }>(res);
-    if (!res.ok) {
-      throw new Error(data.error ?? "将棋用語の補正に失敗しました。");
-    }
-    return data.text?.trim() || raw;
-  };
-
   const appendText = (newText: string) => {
     const trimmed = newText.trim();
     if (!trimmed) return;
@@ -141,12 +106,13 @@ export function FieldVoiceInput({
         mimeTypeRef.current
       );
       const raw =
-        (await transcribeBlob(blob)) || liveText.trim();
+        (await transcribeBlobToText(blob, "field-recording")) ||
+        liveText.trim();
       if (!raw) {
         setError("音声を認識できませんでした。もう一度お試しください。");
         return;
       }
-      const corrected = await correctTranscript(raw);
+      const { corrected } = await correctShogiTranscript(raw);
       appendText(corrected);
     } catch (err) {
       setError(

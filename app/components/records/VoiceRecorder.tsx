@@ -6,8 +6,6 @@ import { Button } from "@/app/components/ui/Button";
 import { SourceInputCollapsible } from "@/app/components/records/SourceInputCollapsible";
 import {
   assembleRecordingBlob,
-  audioBlobExtension,
-  buildUploadChunks,
   getWebKitRecorderMimeType,
   IOS_TIMESLICE_MS,
   isIOSOrWebKit,
@@ -22,6 +20,11 @@ import {
   CHUNK_THRESHOLD_BYTES,
   totalChunkBytes,
 } from "@/app/lib/ios-audio";
+import {
+  correctShogiTranscript,
+  transcribeBlobToText,
+  transcribeChunk,
+} from "@/app/lib/transcribe-client";
 import { saveDraft } from "@/app/lib/draft-storage";
 import type { GameRecordDraft } from "@/app/lib/types";
 import {
@@ -383,26 +386,8 @@ export function VoiceRecorder() {
     setState("correcting");
     setProcessingStep("correcting");
 
-    const res = await fetch("/api/correct-transcript", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript: raw }),
-    });
-
-    const data = await parseJsonResponse<{
-      text?: string;
-      rawText?: string;
-      error?: string;
-    }>(res);
-
-    if (!res.ok) {
-      throw new Error(data.error ?? "将棋用語の補正に失敗しました。");
-    }
-
-    return {
-      corrected: data.text?.trim() || raw,
-      raw: data.rawText ?? raw,
-    };
+    const { corrected, rawText } = await correctShogiTranscript(raw);
+    return { corrected, raw: rawText };
   };
 
   const summarizeTranscript = async (transcript: string, rawTranscript?: string) => {
@@ -499,35 +484,6 @@ export function VoiceRecorder() {
       await new Promise((r) => setTimeout(r, 250));
       retries += 1;
     }
-  };
-
-  const transcribeChunk = async (chunk: Blob): Promise<string> => {
-    const ext = audioBlobExtension(chunk);
-    const form = new FormData();
-    form.append("audio", chunk, `recording.${ext}`);
-
-    const res = await fetch("/api/transcribe", { method: "POST", body: form });
-    const data = await parseJsonResponse<{ text?: string; error?: string }>(res);
-
-    if (!res.ok) {
-      throw new Error(data.error ?? "文字起こしに失敗しました。");
-    }
-
-    return data.text?.trim() ?? "";
-  };
-
-  const transcribeBlobToText = async (blob: Blob): Promise<string> => {
-    if (blob.size === 0) return "";
-
-    const chunks = await buildUploadChunks(blob);
-    const parts: string[] = [];
-
-    for (const chunk of chunks) {
-      const text = await transcribeChunk(chunk);
-      if (text) parts.push(text);
-    }
-
-    return parts.join("\n").trim();
   };
 
   const pauseAfterSegment = async (blob: Blob) => {

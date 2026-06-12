@@ -147,15 +147,13 @@ export async function listGameRecordSummaries(
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("game_records")
-    .select(
-      "id, played_at, venue_type, handicap, player_side, result, my_strategy, opponent_strategy, opponent_rank, tags, source_input_text, kifu_text, kishin_insight, game_positions(sort_order, scene_description, defeat_cause, correct_move, lesson)"
-    )
+    .select(recordSelect)
     .eq("user_id", userId)
     .order("played_at", { ascending: false });
 
   if (error) throw error;
 
-  return (data ?? []).map((row) => {
+  return ((data ?? []) as unknown as DbRecord[]).map((row) => {
     const { handicap, playerSide } = resolveHandicapFields(
       row.handicap ?? "",
       row.player_side as PlayerSide | null
