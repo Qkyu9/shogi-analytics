@@ -11,7 +11,13 @@ function InputMethodTag({ label }: { label: string }) {
   );
 }
 
-export function RecordCard({ record }: { record: GameRecordSummary }) {
+export function RecordCard({
+  record,
+  isHeadlineRecord,
+}: {
+  record: GameRecordSummary;
+  isHeadlineRecord?: boolean;
+}) {
   return (
     <Link href={`/records/${record.id}`}>
       <article className="block rounded-xl bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface-hover)]">
@@ -39,6 +45,25 @@ export function RecordCard({ record }: { record: GameRecordSummary }) {
             {record.tags.map((tag) => (
               <TagChip key={tag} label={tag} />
             ))}
+          </div>
+        )}
+        {record.latestLesson && (
+          <div className="mt-3">
+            {isHeadlineRecord ? (
+              <p className="text-[10px] text-[var(--color-text-sub)] italic">
+                ↑ 上記の教訓に掲載
+              </p>
+            ) : (
+              <p
+                className="border-l-2 border-[var(--color-primary)] pl-2 text-xs leading-relaxed text-[var(--color-text)]"
+                style={{
+                  fontFamily:
+                    '"Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif',
+                }}
+              >
+                {record.latestLesson}
+              </p>
+            )}
           </div>
         )}
       </article>

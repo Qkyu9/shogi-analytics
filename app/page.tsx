@@ -32,7 +32,7 @@ export default function HomePage() {
               すべて見る
             </Link>
           </div>
-          <RecordsView limit={3} />
+          <RecordsView limit={3} showHeadlineNote />
         </section>
       </main>
     </>

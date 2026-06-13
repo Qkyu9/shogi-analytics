@@ -98,6 +98,8 @@ export type GameRecordSummary = {
   hasKifuData: boolean;
   /** 棋譜データから抽出した弱点タグ（一覧表示用） */
   insightTags: string[];
+  /** 口頭要約の教訓欄から抽出した最新の教訓テキスト */
+  latestLesson?: string;
 };
 
 export type GameRecordDetail = GameRecordSummary & {

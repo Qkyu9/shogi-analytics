@@ -5,14 +5,30 @@ import { RecordList } from "@/app/components/records/RecordList";
 import { getAllRecordSummaries } from "@/app/lib/record-storage";
 import type { GameRecordSummary } from "@/app/lib/types";
 
-export function RecordsView({ limit }: { limit?: number }) {
+export function RecordsView({
+  limit,
+  showHeadlineNote,
+}: {
+  limit?: number;
+  showHeadlineNote?: boolean;
+}) {
   const [records, setRecords] = useState<GameRecordSummary[]>([]);
+  const [headlineRecordId, setHeadlineRecordId] = useState<string | undefined>(
+    undefined
+  );
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAllRecordSummaries()
       .then((all) => {
+        if (showHeadlineNote) {
+          const sorted = [...all].sort((a, b) =>
+            b.playedAt.localeCompare(a.playedAt)
+          );
+          const headline = sorted.find((r) => r.latestLesson);
+          setHeadlineRecordId(headline?.id);
+        }
         setRecords(limit ? all.slice(0, limit) : all);
         setReady(true);
       })
@@ -20,7 +36,7 @@ export function RecordsView({ limit }: { limit?: number }) {
         setError(err instanceof Error ? err.message : "読み込みに失敗しました");
         setReady(true);
       });
-  }, [limit]);
+  }, [limit, showHeadlineNote]);
 
   if (!ready) {
     return (
@@ -36,5 +52,5 @@ export function RecordsView({ limit }: { limit?: number }) {
     );
   }
 
-  return <RecordList records={records} />;
+  return <RecordList records={records} headlineRecordId={headlineRecordId} />;
 }

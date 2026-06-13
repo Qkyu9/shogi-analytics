@@ -185,6 +185,16 @@ export async function listGameRecordSummaries(
       row.kishin_insight as KishinInsight | null
     ),
     insightTags: [],
+    latestLesson: (() => {
+      const positions = [...(row.game_positions ?? [])].sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      );
+      for (let i = positions.length - 1; i >= 0; i--) {
+        const l = positions[i].lesson?.trim();
+        if (l) return l;
+      }
+      return undefined;
+    })(),
   };
   });
 }
