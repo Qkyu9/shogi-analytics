@@ -27,6 +27,7 @@ export const SHOGI_CORRECTION_SEED: ShogiCorrection[] = [
   { wrong: "角成り", correct: "角成" },
   { wrong: "飛成り", correct: "飛成" },
   { wrong: "疑問種", correct: "疑問手" },
+  { wrong: "矢倉急戦", correct: "急戦矢倉", note: "語順の誤変換・表記統一" },
   { wrong: "試験飛車", correct: "四間飛車", note: "しけんびしゃの誤変換" },
   { wrong: "四軒飛車", correct: "四間飛車" },
   { wrong: "3軒飛車", correct: "三間飛車" },

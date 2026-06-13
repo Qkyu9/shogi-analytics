@@ -60,14 +60,26 @@ export function StrategyRanking({
               {stat.children && (
                 <ul className="mt-1.5 flex flex-col gap-0.5 pl-3">
                   {stat.children.map((child) => (
-                    <li
-                      key={child.strategy}
-                      className="flex items-baseline justify-between gap-2 text-xs text-[var(--color-text-sub)]"
-                    >
-                      <span className="leading-snug">└ {child.strategy}</span>
-                      <span className="shrink-0">
-                        {child.total}局（{recordBreakdown(child)}）
-                      </span>
+                    <li key={child.strategy}>
+                      <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--color-text-sub)]">
+                        <span className="leading-snug">└ {child.strategy}</span>
+                        <span className="shrink-0">
+                          {child.total}局（{recordBreakdown(child)}）
+                        </span>
+                      </div>
+                      {child.children && (
+                        <ul className="mt-0.5 flex flex-col gap-0.5 pl-3">
+                          {child.children.map((gc) => (
+                            <li
+                              key={gc.strategy}
+                              className="flex items-baseline justify-between gap-2 text-[10px] text-[var(--color-text-sub)] opacity-75"
+                            >
+                              <span className="leading-snug">└ {gc.strategy}</span>
+                              <span className="shrink-0">{gc.total}局</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>

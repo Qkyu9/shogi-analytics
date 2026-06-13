@@ -53,6 +53,24 @@ function trackLatestRecord(bucket: ResultBucket, record: GameRecordDetail) {
   }
 }
 
+function mergeBuckets(items: ResultBucket[]): ResultBucket {
+  const merged = emptyBucket();
+  for (const b of items) {
+    merged.wins += b.wins;
+    merged.losses += b.losses;
+    merged.draws += b.draws;
+    if (
+      b.latestPlayedAt &&
+      (!merged.latestPlayedAt ||
+        new Date(b.latestPlayedAt) > new Date(merged.latestPlayedAt))
+    ) {
+      merged.latestPlayedAt = b.latestPlayedAt;
+      merged.latestRecordId = b.latestRecordId;
+    }
+  }
+  return merged;
+}
+
 function bucketToStat(strategy: string, bucket: ResultBucket): StrategyStat {
   const total = bucket.wins + bucket.losses + bucket.draws;
   return {
@@ -97,42 +115,94 @@ export function computeStrategyStats(
     );
   }
 
-  // 親カテゴリ（上位概念）ごとに元の名前のバケツをまとめる
+  // 親カテゴリ（上位概念）ごとに元の名前のバケツをまとめる（最大3階層対応）
   const resolveParent = options.resolveParent ?? resolveParentStrategy;
-  const groups = new Map<string, Map<string, ResultBucket>>();
-  for (const [name, bucket] of buckets) {
-    const parent = resolveParent(name);
-    const group = groups.get(parent) ?? new Map<string, ResultBucket>();
-    group.set(name, bucket);
-    groups.set(parent, group);
+
+  // 推移的に最上位の祖先を求める
+  function resolveUltimate(name: string): string {
+    let current = name;
+    const visited = new Set<string>();
+    while (true) {
+      const parent = resolveParent(current);
+      if (parent === current || visited.has(current)) return current;
+      visited.add(current);
+      current = parent;
+    }
   }
 
-  const stats = [...groups.entries()].map(([parent, group]) => {
-    const merged = emptyBucket();
-    for (const bucket of group.values()) {
-      merged.wins += bucket.wins;
-      merged.losses += bucket.losses;
-      merged.draws += bucket.draws;
-      if (
-        bucket.latestPlayedAt &&
-        (!merged.latestPlayedAt ||
-          new Date(bucket.latestPlayedAt) > new Date(merged.latestPlayedAt))
-      ) {
-        merged.latestPlayedAt = bucket.latestPlayedAt;
-        merged.latestRecordId = bucket.latestRecordId;
+  // 最上位カテゴリでグループ化
+  const topGroups = new Map<string, Map<string, ResultBucket>>();
+  for (const [name, bucket] of buckets) {
+    const top = resolveUltimate(name);
+    const group = topGroups.get(top) ?? new Map<string, ResultBucket>();
+    group.set(name, bucket);
+    topGroups.set(top, group);
+  }
+
+  const stats: StrategyStat[] = [];
+
+  for (const [top, group] of topGroups) {
+    const topBucket = mergeBuckets([...group.values()]);
+    const topStat = bucketToStat(top, topBucket);
+
+    // 中間カテゴリごとにリーフをまとめる（名前 → { 直接バケツ, 子バケツ群 }）
+    const midMap = new Map<
+      string,
+      { own: ResultBucket | null; children: Map<string, ResultBucket> }
+    >();
+
+    for (const [name, bucket] of group) {
+      if (name === top) continue; // 最上位と同名の直接記録はカウントに含めるが子として表示しない
+      const immediate = resolveParent(name);
+
+      if (immediate === top || immediate === name) {
+        // 最上位の直接の子（自身が中間層にもなる場合はマージ）
+        if (!midMap.has(name)) {
+          midMap.set(name, { own: bucket, children: new Map() });
+        } else {
+          midMap.get(name)!.own = bucket;
+        }
+      } else {
+        // 中間カテゴリ配下のリーフ
+        const entry = midMap.get(immediate) ?? {
+          own: null,
+          children: new Map<string, ResultBucket>(),
+        };
+        entry.children.set(name, bucket);
+        midMap.set(immediate, entry);
       }
     }
-    const stat = bucketToStat(parent, merged);
 
-    const childStats = sortStats(
-      [...group.entries()].map(([name, bucket]) => bucketToStat(name, bucket))
-    );
-    // 親と同名の戦型1つだけなら内訳は不要
-    if (childStats.length > 1 || childStats[0].strategy !== parent) {
-      stat.children = childStats;
+    if (midMap.size === 0) {
+      stats.push(topStat);
+      continue;
     }
-    return stat;
-  });
+
+    const childStats: StrategyStat[] = [];
+    for (const [midName, { own, children }] of midMap) {
+      const allBuckets: ResultBucket[] = [];
+      if (own) allBuckets.push(own);
+      allBuckets.push(...children.values());
+
+      const midBucket = mergeBuckets(allBuckets);
+      const midStat = bucketToStat(midName, midBucket);
+
+      if (children.size > 0) {
+        const grandchildren = sortStats(
+          [...children.entries()].map(([n, b]) => bucketToStat(n, b))
+        );
+        if (grandchildren.length > 1 || grandchildren[0].strategy !== midName) {
+          midStat.children = grandchildren;
+        }
+      }
+      childStats.push(midStat);
+    }
+
+    if (childStats.length > 1 || childStats[0].strategy !== top) {
+      topStat.children = sortStats(childStats);
+    }
+    stats.push(topStat);
+  }
 
   return sortStats(stats);
 }
