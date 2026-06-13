@@ -14,7 +14,7 @@ import type {
   KishinTurningPoint,
 } from "@/app/lib/types";
 
-export const MAX_KISHIN_TURNING_POINTS = 3;
+export const MAX_KISHIN_TURNING_POINTS = 5;
 
 /** 手数の重複を除き、最大件数までに絞る */
 export function dedupeTurningPoints(

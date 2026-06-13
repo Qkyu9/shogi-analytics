@@ -88,7 +88,7 @@ function toDetail(row: DbRecord): GameRecordDetail {
   const kifuText = row.kifu_text ?? undefined;
   const kishinInsight =
     row.kishin_insight && kifuText?.trim()
-      ? enrichKishinInsight(row.kishin_insight, kifuText)
+      ? enrichKishinInsight(row.kishin_insight, kifuText, playerSide)
       : row.kishin_insight ?? undefined;
 
   return {

@@ -14,7 +14,10 @@ import {
   parseKifuMoveIndex,
 } from "@/app/lib/kifu-move-index";
 import { extractMarkedMoves } from "@/app/lib/kifu-line-parse";
-import { dedupeTurningPoints } from "@/app/lib/kishin-insight-display";
+import {
+  dedupeTurningPoints,
+  MAX_KISHIN_TURNING_POINTS,
+} from "@/app/lib/kishin-insight-display";
 import {
   resolveActualMoveForTurningPoint,
   resolveCandidateForTurningPoint,
@@ -375,7 +378,7 @@ export function filterAndSupplementTurningPoints(
 
   filtered = filtered.map((tp) => enrichTurningPoint(tp, facts, kifuText));
 
-  if (!playerSide || filtered.length >= 3) {
+  if (!playerSide || filtered.length >= MAX_KISHIN_TURNING_POINTS) {
     return dedupeTurningPoints(
       filtered.sort((a, b) => a.moveNumber - b.moveNumber)
     );
@@ -416,7 +419,7 @@ export function filterAndSupplementTurningPoints(
   drops.sort((a, b) => a.userDelta - b.userDelta);
 
   for (const d of drops) {
-    if (filtered.length >= 3) break;
+    if (filtered.length >= MAX_KISHIN_TURNING_POINTS) break;
     if (existing.has(d.moveNumber)) continue;
     filtered.push(
       buildTurningPointFromKifu(
@@ -440,13 +443,24 @@ export function filterAndSupplementTurningPoints(
 /** 棋譜データで要所の指し手・候補を具体化（表示は buildKishinDisplay が担当） */
 export function enrichKishinInsight(
   insight: KishinInsight,
-  kifuText: string
+  kifuText: string,
+  playerSide?: PlayerSide | null
 ): KishinInsight {
   const facts = parseKifuEngineFacts(kifuText);
   const enriched = insight.turningPoints.map((tp) =>
     enrichTurningPoint(tp, facts, kifuText)
   );
-  const turningPoints = dedupeTurningPoints(enriched);
+  let turningPoints = dedupeTurningPoints(enriched);
+
+  // 旧MAX=3で保存された既存記録を棋譜から補完（AI再呼び出しなし）
+  // playerSide が明示的に渡された場合のみ実行（summarize-kifu API からの呼び出しは対象外）
+  if (playerSide !== undefined && turningPoints.length < MAX_KISHIN_TURNING_POINTS) {
+    turningPoints = filterAndSupplementTurningPoints(
+      turningPoints,
+      kifuText,
+      playerSide
+    );
+  }
 
   return {
     ...insight,
