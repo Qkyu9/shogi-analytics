@@ -378,7 +378,7 @@ export function filterAndSupplementTurningPoints(
 
   filtered = filtered.map((tp) => enrichTurningPoint(tp, facts, kifuText));
 
-  if (!playerSide || filtered.length >= MAX_KISHIN_TURNING_POINTS) {
+  if (filtered.length >= MAX_KISHIN_TURNING_POINTS) {
     return dedupeTurningPoints(
       filtered.sort((a, b) => a.moveNumber - b.moveNumber)
     );
@@ -397,13 +397,15 @@ export function filterAndSupplementTurningPoints(
 
   for (let i = 0; i < parsed.length; i++) {
     const m = parsed[i];
-    if (!isUserMove(m.side, playerSide)) continue;
+    // playerSide が判明している場合はその手番のみ、不明な場合は両手番から抽出
+    if (playerSide && !isUserMove(m.side, playerSide)) continue;
     if (m.evalAfter == null) continue;
     const prev = parsed[i - 1]?.evalAfter ?? null;
     if (prev == null) continue;
 
-    const userDelta =
-      toUserEval(m.evalAfter, playerSide) - toUserEval(prev, playerSide);
+    const userDelta = playerSide
+      ? toUserEval(m.evalAfter, playerSide) - toUserEval(prev, playerSide)
+      : -(Math.abs(m.evalAfter - prev)); // 手番不明時は評価値変動の絶対値を使用
     if (userDelta > -40) continue;
 
     drops.push({
