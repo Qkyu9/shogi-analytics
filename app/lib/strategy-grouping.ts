@@ -22,7 +22,9 @@ export const STRATEGY_PARENT_MAP: Record<string, string> = {
   対振り右玉: "右玉",
   // 囲いを親とするもの
   雁木袖飛車早繰り銀: "雁木",
+  雁木右四間飛車: "雁木",
   左美濃右四間飛車: "左美濃",
+  カニ囲い右四間飛車: "カニ囲い",
   // elmo系（正式表記はアルファベットの「elmo」）
   右四間飛車elmo: "elmo",
   右四間飛車エルモ: "elmo",
