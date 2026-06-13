@@ -94,7 +94,8 @@ function normalizeInsight(
       },
       kifuText
     ),
-    kifuText
+    kifuText,
+    context.playerSide
   );
 }
 

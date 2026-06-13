@@ -35,6 +35,12 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
+      // 手と手の間の評価値行（between-move eval）を前の手の evalAfter に補完
+      // 棋神形式では評価値が指し手と別行のため、parseInlineEval だけでは null になる
+      if (moves.length > 0 && moves[moves.length - 1].evalAfter === null && lastEval !== null) {
+        moves[moves.length - 1] = { ...moves[moves.length - 1], evalAfter: lastEval };
+      }
+
       const candidateMove =
         preMove.active || hasPendingContent(preMove.pending)
           ? pickCandidateForSide(
@@ -66,6 +72,11 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
     if (/^[+\-]?\d+(?:\.\d+)?$/.test(normalized)) {
       lastEval = parseEvalToken(line);
     }
+  }
+
+  // 最終手の evalAfter も between-move eval で補完
+  if (moves.length > 0 && moves[moves.length - 1].evalAfter === null && lastEval !== null) {
+    moves[moves.length - 1] = { ...moves[moves.length - 1], evalAfter: lastEval };
   }
 
   return moves;
