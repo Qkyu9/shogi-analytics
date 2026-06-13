@@ -28,6 +28,10 @@ export const STRATEGY_PARENT_MAP: Record<string, string> = {
   elmo囲い: "elmo",
   エルモ囲い: "elmo",
   エルモ: "elmo",
+  // 石田流系
+  石田流本組: "石田流",
+  早石田: "石田流",
+  升田式石田流: "石田流",
 };
 
 /** 戦型名から親カテゴリ名を返す。対応表にない場合はそのまま返す。 */
