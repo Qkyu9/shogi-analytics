@@ -32,6 +32,9 @@ export const SHOGI_CORRECTION_SEED: ShogiCorrection[] = [
   { wrong: "3軒飛車", correct: "三間飛車" },
   { wrong: "三軒飛車", correct: "三間飛車" },
   { wrong: "向い飛車", correct: "向かい飛車", note: "表記統一" },
+  { wrong: "エルモ", correct: "elmo", note: "囲いの名前。アルファベット表記に統一" },
+  { wrong: "Elmo", correct: "elmo", note: "表記統一" },
+  { wrong: "ELMO", correct: "elmo", note: "表記統一" },
 ];
 
 /** プロンプト用：誤変換の例を列挙 */

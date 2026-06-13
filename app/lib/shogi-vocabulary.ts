@@ -52,7 +52,7 @@ export const STRATEGY_TERMS: string[] = [
   "振り飛車穴熊",
   "中住まい",
   "舟囲い",
-  "エルモ囲い",
+  "elmo囲い",
   "金無双",
 ];
 
