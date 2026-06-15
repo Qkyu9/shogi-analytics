@@ -71,12 +71,12 @@ function extractEndgameText(insight: KishinInsight, kifuText: string): string {
   const transitionRaw = insight.briefSummaries[4]?.trim();
 
   if (storedRaw && storedRaw.length >= 12 && !looksLikeCoordinateOnly(storedRaw)) {
-    let text = storedRaw.replace(/^終盤[、,]?\s*/, "");
+    let text = storedRaw.replace(/^終盤(?:には?|では?|において|にかけて|に向けて)?[、,]?\s*/, "");
 
     // 6項目目が「では」で始まる＝5項目目との接続文が分断されている
     if (/^では[、,]/.test(text) && transitionRaw && transitionRaw.length >= 8) {
       const transition = transitionRaw
-        .replace(/^終盤[、,]?\s*/, "")
+        .replace(/^終盤(?:には?|では?|において|にかけて|に向けて)?[、,]?\s*/, "")
         .replace(/[。．]\s*$/, "");
       text = `${transition}。${text.replace(/^では[、,]\s*/, "")}`;
     } else {

@@ -7,7 +7,8 @@ export type ParsedNumberedMove = {
   move: string;
 };
 
-const MOVE_TOKEN_RE = /([▲△][^▲△\s、。，]+(?:\([^)]*\))?)/g;
+// 「同 金(32)」のように空白で区切られた同系表記も捕捉する
+const MOVE_TOKEN_RE = /([▲△](?:同\s+[^\s▲△、。，(]+(?:\([^)]*\))?|[^▲△\s、。，(]+(?:\([^)]*\))?))/g;
 const DIGIT = "[\\d０-９]+";
 
 export function normalizeNumericText(text: string): string {
@@ -40,14 +41,52 @@ function formatMove(mark: "▲" | "△", body: string): string {
   return `${mark}${body.replace(/^[▲△]/, "")}`;
 }
 
-/** テキストから符号付き指し手を抽出 */
+/** テキストから符号付き指し手を抽出（「同 金」形式を「同金」に正規化） */
 export function extractMarkedMoves(text: string): string[] {
   const moves: string[] = [];
   for (const m of text.matchAll(MOVE_TOKEN_RE)) {
-    const move = m[1].replace(/\([^)]*\)/g, "").trim();
+    const move = m[1]
+      .replace(/\([^)]*\)/g, "")
+      .replace(/^([▲△]同)\s+/, "$1") // "△同 金" → "△同金"
+      .trim();
     if (move) moves.push(move);
   }
   return moves;
+}
+
+/** 指し手から着地マスの座標を抽出（例: "▲3三歩成" → "3三"）。「同」系は null */
+export function extractMoveDestination(move: string): string | null {
+  const body = move.replace(/^[▲△]/, "");
+  if (/^同/.test(body)) return null;
+  const m = body.match(/^(\d[一二三四五六七八九])/);
+  return m ? m[1] : null;
+}
+
+/** 「同〇〇」表記を直前の着地座標で解決（例: "△同金", "3三" → "△3三同金"） */
+export function resolveSameSquare(
+  move: string,
+  prevDest: string | null
+): string {
+  if (!/^[▲△]同/.test(move)) return move;
+  if (!prevDest) return move;
+  const mark = move[0] as "▲" | "△";
+  const rest = move.slice(1); // "同金" 等
+  return `${mark}${prevDest}${rest}`;
+}
+
+/** 読み筋の手列を順番に追いながら「同」を座標解決 */
+export function resolveSameSquareSequence(
+  moves: string[],
+  initialPrevDest?: string | null
+): string[] {
+  let prevDest: string | null = initialPrevDest ?? null;
+  return moves.map((move) => {
+    const resolved = resolveSameSquare(move, prevDest);
+    const dest = extractMoveDestination(resolved);
+    if (dest) prevDest = dest;
+    // 「同」系は着地点が前と同じのままなので prevDest は変えない
+    return resolved;
+  });
 }
 
 /** 手の行から指し手本体を抽出（7六歩など全体を取る） */

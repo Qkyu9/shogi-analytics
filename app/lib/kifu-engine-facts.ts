@@ -8,6 +8,7 @@ import {
 } from "@/app/lib/kifu-pending-analysis";
 import {
   extractMarkedMoves,
+  extractMoveDestination,
   parseNumberedMoveLine,
 } from "@/app/lib/kifu-line-parse";
 
@@ -42,6 +43,7 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
   const allMovesNormalized = new Set<string>();
 
   let preMove = createPreMoveAnalysisState();
+  let prevDest: string | null = null; // 直前の実戦手の着地座標（「同」解決用）
 
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
@@ -56,7 +58,8 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
           numbered.move,
           preMove.pending,
           (n, m) => addCandidate(candidatesByNumber, n, m),
-          (n, r) => readingLineByNumber.set(n, r)
+          (n, r) => readingLineByNumber.set(n, r),
+          prevDest
         );
       }
       preMove = resetPreMoveState();
@@ -66,6 +69,11 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
       for (const m of extractMarkedMoves(line)) {
         registerMove(allMovesNormalized, m);
       }
+
+      // 「同」系は着地点が前と同じのため prevDest は更新しない
+      const dest = extractMoveDestination(numbered.move);
+      if (dest) prevDest = dest;
+
       continue;
     }
 

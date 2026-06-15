@@ -2,6 +2,7 @@ import {
   extractMarkedMoves,
   parseEngineCommentLine,
   normalizeNumericText,
+  resolveSameSquareSequence,
 } from "@/app/lib/kifu-line-parse";
 
 /** 次の手数行の直前に現れるエンジン解析（棋神 hisui 形式） */
@@ -176,7 +177,8 @@ export function sideMark(side: "sente" | "gote"): "▲" | "△" {
 export function pickCandidateForSide(
   pending: PendingMoveAnalysis,
   side: "sente" | "gote",
-  excludeMove?: string
+  excludeMove?: string,
+  prevGameDest?: string | null
 ): string {
   const mark = sideMark(side);
   const exclude = excludeMove?.replace(/\([^)]*\)/g, "").trim();
@@ -185,7 +187,9 @@ export function pickCandidateForSide(
     m.replace(/\([^)]*\)/g, "").replace(/\s+/g, "").toLowerCase();
 
   if (pending.readingLine) {
-    for (const m of extractMarkedMoves(pending.readingLine)) {
+    const rawMoves = extractMarkedMoves(pending.readingLine);
+    const resolved = resolveSameSquareSequence(rawMoves, prevGameDest ?? null);
+    for (const m of resolved) {
       if (!m.startsWith(mark)) continue;
       if (exclude && norm(m) === norm(exclude)) continue;
       return m;
@@ -207,9 +211,10 @@ export function applyPendingToMaps(
   actualMove: string,
   pending: PendingMoveAnalysis,
   addCandidate: (moveNumber: number, move: string) => void,
-  setReading: (moveNumber: number, reading: string) => void
+  setReading: (moveNumber: number, reading: string) => void,
+  prevGameDest?: string | null
 ) {
-  const candidate = pickCandidateForSide(pending, side, actualMove);
+  const candidate = pickCandidateForSide(pending, side, actualMove, prevGameDest);
   if (candidate) addCandidate(moveNumber, candidate);
   if (pending.readingLine) setReading(moveNumber, pending.readingLine);
 }
