@@ -112,6 +112,13 @@ export function processPreMoveLine(
 
   if (isEvalHeaderLine(trimmed)) {
     state.active = true;
+    if (/読み筋/.test(trimmed)) {
+      // 「評価値 N 読み筋 △同銀...」が1行に連結されている棋神形式の読み筋を抽出する。
+      // 候補ごとに読み筋をリセットすることで、複数候補の連結による「同」解決ずれを防ぐ。
+      state.pending.readingLine = "";
+      state.afterReadingHeader = true;
+      appendReadingChunk(state.pending, extractReadingBody(trimmed));
+    }
     return;
   }
 
@@ -123,6 +130,7 @@ export function processPreMoveLine(
   if (/読み筋/.test(trimmed)) {
     state.active = true;
     state.afterReadingHeader = true;
+    state.pending.readingLine = "";  // 新しい候補の読み筋はリセットしてから追記
     appendReadingChunk(state.pending, extractReadingBody(trimmed));
     return;
   }

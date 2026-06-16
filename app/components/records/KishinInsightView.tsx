@@ -32,6 +32,7 @@ function TurningPointCard({
   evalChange,
   readingLine,
   intent,
+  fromVariation,
 }: {
   index: number;
   moveNumber: number;
@@ -40,11 +41,15 @@ function TurningPointCard({
   evalChange: string;
   readingLine: string;
   intent: string;
+  fromVariation?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <p className="text-sm font-semibold text-[var(--color-text)]">
         要所 {index + 1}（{moveNumber}手目）
+        {fromVariation && (
+          <span className="ml-2 text-xs font-normal px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">変化図</span>
+        )}
       </p>
       <dl className="mt-2 flex flex-col gap-1.5 text-sm">
         <div className="flex gap-2">
@@ -171,6 +176,7 @@ export function KishinInsightView({
                 evalChange={tp.evalChange}
                 readingLine={tp.readingLine}
                 intent={tp.intent}
+                fromVariation={tp.fromVariation}
               />
             ))}
           </div>

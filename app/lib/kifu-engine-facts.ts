@@ -9,6 +9,7 @@ import {
 import {
   extractMarkedMoves,
   extractMoveDestination,
+  parseEngineEvalLine,
   parseNumberedMoveLine,
 } from "@/app/lib/kifu-line-parse";
 
@@ -17,6 +18,8 @@ export type KifuEngineFacts = {
   candidatesByNumber: Map<number, string[]>;
   readingLineByNumber: Map<number, string>;
   allMovesNormalized: Set<string>;
+  /** 変化図の情報（変化：N手目 ブロックから抽出） */
+  variationsByNumber: Map<number, { firstMove: string; evalAfter?: number }>;
 };
 
 function addCandidate(
@@ -41,13 +44,67 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
   const candidatesByNumber = new Map<number, string[]>();
   const readingLineByNumber = new Map<number, string>();
   const allMovesNormalized = new Set<string>();
+  const variationsByNumber = new Map<number, { firstMove: string; evalAfter?: number }>();
 
   let preMove = createPreMoveAnalysisState();
   let prevDest: string | null = null; // 直前の実戦手の着地座標（「同」解決用）
 
+  // 変化図処理用フラグ
+  let inVariation = false;
+  let variationPending: { moveNumber: number; firstMove?: string; evalAfter?: number } | null = null;
+
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
+
+    // 変化図開始マーカーの検出
+    const variationMatch = line.match(/^変化：(\d+)手目/);
+    if (variationMatch) {
+      // 直前の変化図ペンディングを確定
+      if (variationPending?.firstMove) {
+        variationsByNumber.set(variationPending.moveNumber, {
+          firstMove: variationPending.firstMove,
+          evalAfter: variationPending.evalAfter,
+        });
+      }
+      inVariation = true;
+      variationPending = { moveNumber: parseInt(variationMatch[1], 10) };
+      continue;
+    }
+
+    // 変化図内の処理（インデントで始まる行）
+    if (inVariation) {
+      if (/^[\s　\t]/.test(rawLine)) {
+        // 変化図の行（全角スペース・半角スペース・タブでインデントされた行）
+        const varLine = line; // trim済み
+        if (variationPending && !variationPending.firstMove) {
+          // 最初の手番行を探す
+          const numbered = parseNumberedMoveLine(varLine);
+          if (numbered && numbered.moveNumber === variationPending.moveNumber) {
+            variationPending.firstMove = numbered.move;
+            registerMove(allMovesNormalized, numbered.move);
+          }
+        } else if (variationPending?.firstMove) {
+          // firstMove 確定後の評価値行を取得
+          const evalVal = parseEngineEvalLine(varLine);
+          if (evalVal != null && variationPending.evalAfter === undefined) {
+            variationPending.evalAfter = evalVal;
+          }
+        }
+        continue; // 変化図の行は実戦処理をスキップ
+      } else {
+        // インデントなし行が来た → 変化図終了
+        if (variationPending?.firstMove) {
+          variationsByNumber.set(variationPending.moveNumber, {
+            firstMove: variationPending.firstMove,
+            evalAfter: variationPending.evalAfter,
+          });
+        }
+        inVariation = false;
+        variationPending = null;
+        // この行は実戦として続けて処理する（fall through）
+      }
+    }
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {
@@ -83,11 +140,20 @@ export function parseKifuEngineFacts(kifuText: string): KifuEngineFacts {
     }
   }
 
+  // ループ終了後も未確定の変化図ペンディングがあれば確定
+  if (variationPending?.firstMove) {
+    variationsByNumber.set(variationPending.moveNumber, {
+      firstMove: variationPending.firstMove,
+      evalAfter: variationPending.evalAfter,
+    });
+  }
+
   return {
     moveByNumber,
     candidatesByNumber,
     readingLineByNumber,
     allMovesNormalized,
+    variationsByNumber,
   };
 }
 

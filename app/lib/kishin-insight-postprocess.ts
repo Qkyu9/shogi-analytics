@@ -406,7 +406,8 @@ export function filterAndSupplementTurningPoints(
     const userDelta = playerSide
       ? toUserEval(m.evalAfter, playerSide) - toUserEval(prev, playerSide)
       : -(Math.abs(m.evalAfter - prev)); // 手番不明時は評価値変動の絶対値を使用
-    if (userDelta > -40) continue;
+    // 変化図修正により実戦手同士の正確な落差で計算されるため、閾値を緩和
+    if (userDelta > -20) continue;
 
     drops.push({
       moveNumber: m.moveNumber,
@@ -435,6 +436,48 @@ export function filterAndSupplementTurningPoints(
       )
     );
     existing.add(d.moveNumber);
+  }
+
+  // 変化図の要所を追加（dropsで上限に達していない場合）
+  if (facts.variationsByNumber.size > 0) {
+    const parsedForEval = parseKifuWithEvals(kifuText); // evalBefore 取得用
+    for (const [varMoveNumber, varEntry] of facts.variationsByNumber) {
+      if (filtered.length >= MAX_KISHIN_TURNING_POINTS) break;
+      if (existing.has(varMoveNumber)) continue;
+
+      // playerSide フィルタ
+      if (playerSide) {
+        const tempTp: KishinTurningPoint = {
+          move: varEntry.firstMove,
+          moveNumber: varMoveNumber,
+          evalChange: "",
+          topCandidate: "",
+          insight: "",
+        };
+        if (sideFromTurningPoint(tempTp) !== playerSide) continue;
+      }
+
+      // evalBefore は変化図の1手前の実戦評価値から取得
+      const prevMove = parsedForEval.find((m) => m.moveNumber === varMoveNumber - 1);
+      const evalBefore = prevMove?.evalAfter ?? 0;
+      const evalAfter = varEntry.evalAfter ?? 0;
+
+      const tp = buildTurningPointFromKifu(
+        varMoveNumber,
+        varEntry.firstMove,
+        evalBefore,
+        evalAfter,
+        null,
+        facts,
+        kifuText
+      );
+
+      // evalBefore と evalAfter が両方0の場合は evalChange を空にする
+      const evalChange = evalBefore === 0 && evalAfter === 0 ? "" : tp.evalChange;
+
+      filtered.push({ ...tp, fromVariation: true, evalChange });
+      existing.add(varMoveNumber);
+    }
   }
 
   return dedupeTurningPoints(

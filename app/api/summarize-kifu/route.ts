@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     });
 
     const raw = extractJsonBlock<RawKishinInsight>(summaryText);
-    const insight = normalizeInsight(raw, context, trimmedKifu);
+    const insight = normalizeInsight(raw, context, kifuText);
 
     const hasContent =
       insight.briefSummaries.some(Boolean) || insight.turningPoints.length > 0;

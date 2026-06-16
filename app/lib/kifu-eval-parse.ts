@@ -30,10 +30,28 @@ export function parseKifuWithEvals(kifuText: string): ParsedKifuMove[] {
   let preMove = createPreMoveAnalysisState();
   let lastEval: number | null = null;
   let prevDest: string | null = null; // 直前の実戦手の着地座標（「同」解決用）
+  let inVariation = false; // 変化図フラグ
 
   for (const rawLine of kifuText.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
+
+    // 変化図開始マーカー
+    if (line.startsWith("変化：")) {
+      inVariation = true;
+      continue;
+    }
+
+    // 変化図内の処理
+    if (inVariation) {
+      if (/^[\s　\t]/.test(rawLine)) {
+        // インデントあり → 変化図の行はスキップ
+        continue;
+      } else {
+        // インデントなし → 変化図終了、この行は通常処理へ
+        inVariation = false;
+      }
+    }
 
     const numbered = parseNumberedMoveLine(line);
     if (numbered) {

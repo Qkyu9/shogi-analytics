@@ -144,6 +144,7 @@ function buildDisplayTurningPoint(
     evalChange: tp.evalChange.trim(),
     readingLine,
     intent,
+    fromVariation: tp.fromVariation,
   };
 }
 

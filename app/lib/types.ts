@@ -26,6 +26,8 @@ export type KishinTurningPoint = {
   evalChange: string;
   topCandidate: string;
   insight: string;
+  /** 変化図から抽出した要所かどうか */
+  fromVariation?: boolean;
 };
 
 /** UI表示用：要所1件（本譜・候補は棋譜から機械取得） */
@@ -38,6 +40,8 @@ export type KishinDisplayTurningPoint = {
   intent: string;
   /** 棋譜に記載された読み筋（原文・折りたたみ用） */
   readingLine: string;
+  /** 変化図から抽出した要所かどうか */
+  fromVariation?: boolean;
 };
 
 /** UI表示用：棋神示唆のまとめ（第1段階） */

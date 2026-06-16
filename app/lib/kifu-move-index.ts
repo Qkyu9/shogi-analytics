@@ -3,9 +3,29 @@ import { parseNumberedMoveLine } from "@/app/lib/kifu-line-parse";
 /** 棋神棋譜テキストから手数→指し手の対応表を抽出（事実照合用） */
 export function parseKifuMoveIndex(kifuText: string): Map<number, string> {
   const index = new Map<number, string>();
+  let inVariation = false; // 変化図フラグ
 
   for (const line of kifuText.split("\n")) {
-    const parsed = parseNumberedMoveLine(line.trim());
+    const trimmed = line.trim();
+
+    // 変化図開始マーカー
+    if (trimmed.startsWith("変化：")) {
+      inVariation = true;
+      continue;
+    }
+
+    // 変化図内の処理
+    if (inVariation) {
+      if (/^[\s　\t]/.test(line)) {
+        // インデントあり → 変化図の行はスキップ
+        continue;
+      } else {
+        // インデントなし → 変化図終了
+        inVariation = false;
+      }
+    }
+
+    const parsed = parseNumberedMoveLine(trimmed);
     if (parsed && parsed.moveNumber > 0) {
       index.set(parsed.moveNumber, parsed.move);
     }
