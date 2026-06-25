@@ -52,7 +52,7 @@ export function normalizeRankInText(text: string): string {
 
   return text
     .replace(
-      /([ウォーズ将棋会館棋の音]+)?([一二三四五六七八九十\d]+)(級|段)/g,
+      /([ウォーズ将棋会館棋の音棋桜]+)?([一二三四五六七八九十\d]+)(級|段)/g,
       (full, prefix = "", num: string, suffix: string) => {
         const label = `${prefix ?? ""}${num}${suffix}`;
         return normalizeRankLabel(label);

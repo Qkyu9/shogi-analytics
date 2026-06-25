@@ -7,9 +7,11 @@ export const PLAYER_SIDE_LABELS: Record<PlayerSide, string> = {
 
 const VENUE_NOISE_PATTERNS = [
   /棋の音/g,
+  /棋桜/g,
   /将棋ウォーズ/g,
   /ウォーズ/g,
   /10分?切れ/g,
+  /10分30秒/g,
   /スプリント/g,
 ];
 
@@ -119,8 +121,11 @@ export function resolveHandicapFields(
   playerSideRaw?: string | null
 ): { handicap: string; playerSide: PlayerSide | null } {
   const handicap = normalizeHandicapLabel(handicapRaw);
+  /** 手合欄に先手/後手が書かれていれば、旧 playerSide より手合テキストを優先 */
   const playerSide =
-    normalizePlayerSide(playerSideRaw) ?? inferPlayerSide(handicap);
+    inferPlayerSide(handicap) ??
+    normalizePlayerSide(playerSideRaw) ??
+    null;
 
   if (handicap === "平手" && playerSide) {
     return {

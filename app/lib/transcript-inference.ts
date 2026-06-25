@@ -27,7 +27,11 @@ export function inferHandicapFromTranscript(transcript: string): string {
 
 /** 対局形式から手合のデフォルト（駒落ち言及が無い場合） */
 export function defaultHandicapForVenue(venueType: VenueType): string {
-  if (venueType === "shogi_wars_10min" || venueType === "shogi_wars_sprint") {
+  if (
+    venueType === "shogi_wars_10min" ||
+    venueType === "shogi_wars_sprint" ||
+    venueType === "kiou_10min30sec"
+  ) {
     return "平手";
   }
   return "";
@@ -53,7 +57,7 @@ export function resolveHandicapFromSummary(
 }
 
 const RANK_IN_TRANSCRIPT_RE =
-  /(将棋ウォーズ|ウォーズ|棋の音|会館)\s*([初一二三四五六七八九十\d]+段|[0-9０-９一二三四五六七八九十]+級)/g;
+  /(将棋ウォーズ|ウォーズ|棋の音|棋桜|会館)\s*([初一二三四五六七八九十\d]+段|[0-9０-９一二三四五六七八九十]+級)/g;
 
 function extractRankFromTranscript(transcript: string): string | null {
   const match = RANK_IN_TRANSCRIPT_RE.exec(transcript.replace(/\s+/g, ""));
@@ -70,6 +74,7 @@ function venueRankPrefix(venueType: VenueType): string | null {
     return "ウォーズ";
   }
   if (venueType === "kion") return "会館";
+  if (venueType === "kiou_10min30sec") return "棋桜";
   return null;
 }
 
@@ -85,7 +90,7 @@ export function enrichOpponentRank(
   const rank = normalizeRankLabel(rankRaw.trim());
   if (!rank) return "";
 
-  if (/ウォーズ|会館|棋の音|将棋/.test(rank)) {
+  if (/ウォーズ|会館|棋の音|棋桜|将棋/.test(rank)) {
     return rank;
   }
 

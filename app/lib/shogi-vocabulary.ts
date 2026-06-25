@@ -90,6 +90,7 @@ export const GENERAL_TERMS: string[] = [
   "投了",
   "棋神アナリティクス",
   "将棋ウォーズ",
+  "棋桜",
 ];
 
 /**
@@ -98,7 +99,7 @@ export const GENERAL_TERMS: string[] = [
  * whisper-1 はプロンプトが長いと先頭から切り捨てられるため、重要な戦型名を後方に置く。
  */
 export function buildTranscribeHint(): string {
-  return `将棋の対局の振り返り。${[...GENERAL_TERMS, ...STRATEGY_TERMS].join(
+  return `将棋の対局の振り返り。棋桜（きおう）。${[...GENERAL_TERMS, ...STRATEGY_TERMS].join(
     "、"
   )}。`;
 }

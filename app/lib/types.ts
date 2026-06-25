@@ -7,6 +7,8 @@ export const VENUE_TYPES = [
   "shogi_wars_10min",
   "shogi_wars_sprint",
   "kion",
+  "kiou_10min30sec",
+  "musuko",
   "other",
 ] as const;
 
@@ -155,7 +157,18 @@ export const VENUE_OPTIONS: { value: VenueType; label: string }[] = [
   { value: "shogi_wars_10min", label: "将棋ウォーズ 10切れ" },
   { value: "shogi_wars_sprint", label: "将棋ウォーズ スプリント" },
   { value: "kion", label: "棋の音" },
+  { value: "kiou_10min30sec", label: "棋桜 10分30秒" },
+  { value: "musuko", label: "息子" },
   { value: "other", label: "その他" },
+];
+
+/** 相手の段位・級位入力の候補（datalist 等） */
+export const OPPONENT_RANK_SUGGESTIONS: string[] = [
+  "ウォーズ1級",
+  "ウォーズ初段",
+  "会館1級",
+  "会館二段",
+  "棋桜1級",
 ];
 
 export const RESULT_LABELS: Record<GameResult, string> = {

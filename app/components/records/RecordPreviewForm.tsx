@@ -14,14 +14,17 @@ import { KifuPasteArea } from "./KifuPasteArea";
 import { SourceInputCollapsible } from "./SourceInputCollapsible";
 import { TagInput } from "./TagInput";
 import {
+  composeEvenHandicapLabel,
   formatHandicapDisplay,
   isEvenHandicapWithSide,
   isKomaochiHandicap,
+  normalizeHandicapLabel,
   PLAYER_SIDE_LABELS,
   resolveHandicapFields,
+  type PlayerSide,
 } from "@/app/lib/handicap";
 import type { GameRecordDraft, GamePosition } from "@/app/lib/types";
-import { VENUE_OPTIONS } from "@/app/lib/types";
+import { OPPONENT_RANK_SUGGESTIONS, VENUE_OPTIONS } from "@/app/lib/types";
 import { fromDatetimeLocalJst, toDatetimeLocalJst } from "@/app/lib/utils";
 import { mockTagSuggestions } from "@/app/lib/mock-data";
 
@@ -105,6 +108,25 @@ export function RecordPreviewForm({
       handicap: resolved.handicap,
       playerSide: resolved.playerSide,
     }));
+  };
+
+  const updatePlayerSide = (side: PlayerSide | null) => {
+    setDraft((d) => {
+      if (isKomaochiHandicap(d.handicap)) {
+        return { ...d, playerSide: side };
+      }
+      const normalized = normalizeHandicapLabel(d.handicap);
+      const isEven =
+        normalized === "平手" ||
+        isEvenHandicapWithSide(normalized) ||
+        /^平手/.test(normalized);
+      return {
+        ...d,
+        playerSide: side,
+        handicap:
+          isEven && side ? composeEvenHandicapLabel(side) : d.handicap,
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -273,6 +295,29 @@ export function RecordPreviewForm({
           onChange={(e) => updateHandicap(e.target.value)}
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
         />
+        {!isKomaochiHandicap(draft.handicap) && (
+          <>
+            <label className="text-sm font-semibold">自分の手番（先手・後手）</label>
+            <select
+              value={draft.playerSide ?? ""}
+              onChange={(e) =>
+                updatePlayerSide(
+                  e.target.value === "sente" || e.target.value === "gote"
+                    ? e.target.value
+                    : null
+                )
+              }
+              className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
+            >
+              <option value="">未設定</option>
+              <option value="sente">先手</option>
+              <option value="gote">後手</option>
+            </select>
+            <p className="text-xs text-[var(--color-text-sub)]">
+              音声入力で手番を言い間違えたときは、ここで修正できます。
+            </p>
+          </>
+        )}
         {draft.playerSide &&
           isKomaochiHandicap(draft.handicap) &&
           !isEvenHandicapWithSide(draft.handicap) && (
@@ -302,13 +347,19 @@ export function RecordPreviewForm({
       <section className="flex flex-col gap-3">
         <label className="text-sm font-semibold">相手の段位・級位</label>
         <input
-          placeholder="例: ウォーズ1級、会館二段"
+          list="opponent-rank-suggestions"
+          placeholder="例: ウォーズ1級、棋桜1級、会館二段"
           value={draft.opponentRank ?? ""}
           onChange={(e) =>
             setDraft((d) => ({ ...d, opponentRank: e.target.value }))
           }
           className="min-h-12 rounded-lg border border-[var(--color-border)] px-3"
         />
+        <datalist id="opponent-rank-suggestions">
+          {OPPONENT_RANK_SUGGESTIONS.map((rank) => (
+            <option key={rank} value={rank} />
+          ))}
+        </datalist>
       </section>
 
       <section className="flex flex-col gap-3">
